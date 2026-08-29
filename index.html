@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ann — Surplus Food Redistribution Platform</title>
   
+  <!-- Favicon / App Icons -->
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
   <!-- CDNs -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -20,125 +24,261 @@
 </head>
 <body class="bg-slate-50 text-slate-900 bg-grid antialiased">
 
-  <!-- ==================== VIEW 1: LOGIN PORTAL ==================== -->
-  <section id="view-login" class="min-h-screen flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
+  <!-- ==================== VIEW 0: DUAL LOGIN PORTAL (DONOR & NGO) ==================== -->
+  <section id="view-login" class="min-h-screen flex flex-col justify-between py-6 px-4 sm:px-6 lg:px-8">
     
     <!-- Top Branding -->
     <header class="max-w-5xl mx-auto w-full flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <img src="logo.png" alt="Ann Logo" class="w-14 h-14 object-contain drop-shadow">
+      <div class="flex items-center gap-3 cursor-pointer group" onclick="switchView('login')">
+        <div class="relative">
+          <img src="logo.png" alt="Ann Logo" class="w-12 h-12 object-contain ann-logo-img drop-shadow">
+        </div>
         <div>
-          <span class="text-2xl font-extrabold text-slate-900">Ann<span class="text-emerald-600">.</span></span>
-          <p class="text-xs text-slate-500 font-medium">Zero Food Waste Redistribution Network</p>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl font-extrabold text-slate-900 tracking-tight">Ann<span class="text-emerald-600">.</span></span>
+            <span class="text-xs font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full border border-amber-200/70">अन्न</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">Surplus Food Redistribution Network</p>
         </div>
       </div>
-      <div class="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full text-emerald-800 text-xs font-semibold">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-        <span>Redistribution Grid: Online</span>
+      <div class="flex items-center gap-2.5">
+        <button onclick="quickLogin('admin')" class="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm transition group">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform"></i>
+          <span>Admin Portal</span>
+        </button>
+        <div class="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full text-emerald-800 text-xs font-semibold">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Grid Online</span>
+        </div>
       </div>
     </header>
 
-    <!-- Main Login Container -->
-    <div class="max-w-4xl mx-auto w-full my-auto py-6">
+    <!-- Main Container -->
+    <div class="max-w-5xl mx-auto w-full my-auto py-6">
       
       <!-- Hero Headline -->
       <div class="text-center mb-8">
-        <span class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-1 rounded-full text-xs font-bold uppercase mb-3">
+        <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-200 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3">
           <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
-          <span>Secure Google Authentication</span>
+          <span>Secure Dual-Role Portal</span>
         </span>
         <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
           Welcome to Ann Food Network
         </h1>
         <p class="text-slate-500 text-sm max-w-lg mx-auto mt-2">
-          Connect surplus food donors directly with verified local NGOs, shelters, and relief kitchens.
+          Select your portal to access your dashboard, list surplus food, or claim meals for your shelter.
         </p>
 
-        <!-- Prominent Google Sign-in Button -->
-        <div class="mt-6 flex flex-col items-center justify-center">
-          <button 
-            onclick="openGoogleAuthModal()"
-            class="flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 font-bold px-6 py-3.5 rounded-2xl shadow-sm hover:shadow-md transition active:scale-95 text-sm sm:text-base group"
-          >
-            <!-- Google multi-colored G icon -->
-            <svg class="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-            </svg>
-            <span>Continue with Google / Gmail</span>
-            <i data-lucide="arrow-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform"></i>
-          </button>
-          <span class="text-xs text-slate-400 mt-2.5">or choose a demo portal below</span>
+        <!-- Mobile Segmented Tab Switcher (Visible on mobile only) -->
+        <div class="flex md:hidden justify-center mt-6">
+          <div class="bg-slate-200/80 p-1 rounded-2xl flex max-w-xs w-full shadow-inner">
+            <button id="tab-donor-btn" type="button" onclick="setLoginTab('donor')" class="flex-1 py-2 text-xs font-bold rounded-xl transition bg-white text-emerald-700 shadow-sm flex items-center justify-center gap-1.5">
+              <i data-lucide="utensils" class="w-3.5 h-3.5"></i>
+              <span>Food Donor</span>
+            </button>
+            <button id="tab-ngo-btn" type="button" onclick="setLoginTab('ngo')" class="flex-1 py-2 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5">
+              <i data-lucide="heart-handshake" class="w-3.5 h-3.5"></i>
+              <span>NGO Shelter</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Two Portal Selection Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Side-by-Side Dual Login Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         
-        <!-- Food Donor Card -->
-        <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-soft hover:shadow-xl hover:border-emerald-400 transition-all flex flex-col justify-between border-t-8 border-t-emerald-500 relative group">
+        <!-- CARD 1: FOOD DONOR LOGIN -->
+        <div id="card-donor-login" class="glass-card rounded-3xl p-6 sm:p-8 shadow-soft border-t-8 border-t-emerald-500 flex flex-col justify-between transition-all duration-300">
           <div>
             <div class="flex items-center justify-between mb-4">
-              <img src="logo.png" alt="Ann Logo" class="w-14 h-14 object-contain drop-shadow group-hover:scale-110 transition-transform">
-              <span class="text-xs font-bold uppercase bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">Donors</span>
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200/80 p-1.5 flex items-center justify-center shadow-xs">
+                  <img src="logo.png" alt="Ann" class="w-full h-full object-contain ann-logo-img">
+                </div>
+                <div>
+                  <span class="text-xs font-bold uppercase text-emerald-800 tracking-wide block">Food Donor Grid</span>
+                  <span class="text-[10px] text-slate-400 font-medium">Verified Commercial Kitchens</span>
+                </div>
+              </div>
+              <span class="text-xs font-bold uppercase bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full border border-emerald-200/60">Donor Portal</span>
             </div>
-            <h2 class="text-xl font-bold text-slate-900">Food Donor Portal</h2>
-            <p class="text-xs text-slate-500 mt-1">
-              For Restaurants, Caterers, Bakeries, and Kitchens wishing to list excess meals.
+            
+            <h2 class="text-xl font-bold text-slate-900">Food Donor Sign In</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-5">
+              For Restaurants, Caterers, Bakeries, and Commercial Kitchens
             </p>
-            <ul class="my-5 space-y-2 text-xs text-slate-600">
-              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>Instant surplus food listing</li>
-              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>Verified FSSAI Food License Profile</li>
-              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>Automated volunteer pickup dispatch</li>
-            </ul>
+
+            <form onsubmit="handleDonorLogin(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Donor Email or Kitchen ID</label>
+                <div class="relative">
+                  <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                  <input 
+                    type="email" 
+                    id="donor-email" 
+                    required 
+                    placeholder="chef.royalspice@gmail.com" 
+                    value="chef.royalspice@gmail.com"
+                    class="w-full pl-9 pr-4 py-2.5 text-xs rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-medium"
+                  >
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-bold text-slate-700">Password</label>
+                  <a href="#" onclick="event.preventDefault(); alert('Demo password: any 4+ characters')" class="text-[11px] font-semibold text-emerald-600 hover:underline">Forgot?</a>
+                </div>
+                <div class="relative">
+                  <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                  <input 
+                    type="password" 
+                    id="donor-password" 
+                    required 
+                    placeholder="••••••••" 
+                    value="password123"
+                    class="w-full pl-9 pr-10 py-2.5 text-xs rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-medium"
+                  >
+                  <button type="button" onclick="togglePasswordVisibility('donor-password', 'donor-eye-icon')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                    <i id="donor-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-slate-500">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked class="accent-emerald-600 rounded">
+                  <span>Keep me signed in</span>
+                </label>
+                <span class="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> FSSAI Certified
+                </span>
+              </div>
+
+              <p id="donor-login-error" class="text-xs text-red-500 font-semibold hidden"></p>
+
+              <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm flex items-center justify-center gap-2 active:scale-98">
+                <i data-lucide="log-in" class="w-4 h-4"></i>
+                <span>Sign In as Food Donor</span>
+              </button>
+            </form>
           </div>
-          <div class="pt-4 border-t border-slate-100">
-            <button onclick="loginAs('donor', 'Royal Spice Caterers', 'chef.royalspice@gmail.com')" class="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
-              <i data-lucide="log-in" class="w-4 h-4"></i>
-              <span>Enter as Food Donor</span>
+
+          <div class="mt-6 pt-5 border-t border-slate-100">
+            <button type="button" onclick="quickLogin('donor')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold py-2.5 px-4 rounded-xl transition text-xs group">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform"></i>
+              <span>1-Click Demo Login (Royal Spice Caterers)</span>
             </button>
-            <p class="text-[11px] text-center text-slate-400 mt-2">Account: chef.royalspice@gmail.com</p>
           </div>
         </div>
 
-        <!-- NGO Partner Card -->
-        <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-soft hover:shadow-xl hover:border-blue-400 transition-all flex flex-col justify-between border-t-8 border-t-blue-500 relative group">
+        <!-- CARD 2: NGO & SHELTER LOGIN -->
+        <div id="card-ngo-login" class="glass-card rounded-3xl p-6 sm:p-8 shadow-soft border-t-8 border-t-blue-500 flex flex-col justify-between transition-all duration-300">
           <div>
             <div class="flex items-center justify-between mb-4">
-              <img src="logo.png" alt="Ann Logo" class="w-14 h-14 object-contain drop-shadow group-hover:scale-110 transition-transform">
-              <span class="text-xs font-bold uppercase bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">NGOs & Shelters</span>
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200/80 p-1.5 flex items-center justify-center shadow-xs">
+                  <img src="logo.png" alt="Ann" class="w-full h-full object-contain ann-logo-img">
+                </div>
+                <div>
+                  <span class="text-xs font-bold uppercase text-blue-800 tracking-wide block">Ann NGO Network</span>
+                  <span class="text-[10px] text-slate-400 font-medium">Relief Shelters & Kitchens</span>
+                </div>
+              </div>
+              <span class="text-xs font-bold uppercase bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-200/60">NGO Portal</span>
             </div>
-            <h2 class="text-xl font-bold text-slate-900">NGO & Shelter Portal</h2>
-            <p class="text-xs text-slate-500 mt-1">
-              For Verified NGOs, Relief Kitchens, and Shelters claiming fresh surplus food.
+            
+            <h2 class="text-xl font-bold text-slate-900">NGO & Shelter Sign In</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-5">
+              For Relief Shelters, NGOs, Community Kitchens & Volunteers
             </p>
-            <ul class="my-5 space-y-2 text-xs text-slate-600">
-              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-blue-600"></i>Live radar of nearby surplus meals</li>
-              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-blue-600"></i>NGO Darpan & 80G Certified Profile</li>
-              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-blue-600"></i>1-Click reservation & route assignment</li>
-            </ul>
+
+            <form onsubmit="handleNgoLogin(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">NGO Email or Darpan ID</label>
+                <div class="relative">
+                  <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                  <input 
+                    type="text" 
+                    id="ngo-email" 
+                    required 
+                    placeholder="contact.hopeshelter@gmail.com" 
+                    value="contact.hopeshelter@gmail.com"
+                    class="w-full pl-9 pr-4 py-2.5 text-xs rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 font-medium"
+                  >
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-bold text-slate-700">Password</label>
+                  <a href="#" onclick="event.preventDefault(); alert('Demo password: any 4+ characters')" class="text-[11px] font-semibold text-blue-600 hover:underline">Forgot?</a>
+                </div>
+                <div class="relative">
+                  <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                  <input 
+                    type="password" 
+                    id="ngo-password" 
+                    required 
+                    placeholder="••••••••" 
+                    value="password123"
+                    class="w-full pl-9 pr-10 py-2.5 text-xs rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 font-medium"
+                  >
+                  <button type="button" onclick="togglePasswordVisibility('ngo-password', 'ngo-eye-icon')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                    <i id="ngo-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-slate-500">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked class="accent-blue-600 rounded">
+                  <span>Keep me signed in</span>
+                </label>
+                <span class="text-[11px] text-blue-600 font-medium flex items-center gap-1">
+                  <i data-lucide="award" class="w-3.5 h-3.5"></i> 80G Tax Exempt
+                </span>
+              </div>
+
+              <p id="ngo-login-error" class="text-xs text-red-500 font-semibold hidden"></p>
+
+              <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm flex items-center justify-center gap-2 active:scale-98">
+                <i data-lucide="log-in" class="w-4 h-4"></i>
+                <span>Sign In as NGO Partner</span>
+              </button>
+            </form>
           </div>
-          <div class="pt-4 border-t border-slate-100">
-            <button onclick="loginAs('ngo', 'Hope Shelter Network', 'contact.hopeshelter@gmail.com')" class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
-              <i data-lucide="heart-handshake" class="w-4 h-4"></i>
-              <span>Enter as NGO Partner</span>
+
+          <div class="mt-6 pt-5 border-t border-slate-100">
+            <button type="button" onclick="quickLogin('ngo')" class="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold py-2.5 px-4 rounded-xl transition text-xs group">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition-transform"></i>
+              <span>1-Click Demo Login (Hope Shelter Network)</span>
             </button>
-            <p class="text-[11px] text-center text-slate-400 mt-2">Account: contact.hopeshelter@gmail.com</p>
           </div>
         </div>
 
       </div>
     </div>
 
-    <footer class="max-w-5xl mx-auto w-full text-center text-xs text-slate-400 pt-4 border-t border-slate-200">
-      <span>Ann Zero-Waste Alliance • Surplus Food Redistribution Platform</span>
+    <!-- Branded Login Footer -->
+    <footer class="max-w-5xl mx-auto w-full text-xs text-slate-400 py-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <img src="logo.png" alt="Ann Logo" class="w-6 h-6 object-contain drop-shadow">
+        <span class="font-bold text-slate-700">Ann<span class="text-emerald-600">.</span> <span class="text-slate-400 font-normal">Zero-Waste Alliance</span></span>
+      </div>
+      <p class="text-[11px] text-slate-400">अन्न • Nourishing Communities & Rescuing Surplus Food</p>
+      <div class="flex items-center gap-3 text-[11px] text-slate-500 font-medium">
+        <span>FSSAI Partner</span>
+        <span>•</span>
+        <span>Darpan Verified</span>
+        <span>•</span>
+        <span>80G Tax Exempt</span>
+      </div>
     </footer>
   </section>
 
 
-  <!-- ==================== VIEW 2: DONOR DASHBOARD ==================== -->
+  <!-- ==================== VIEW 1: DONOR DASHBOARD ==================== -->
   <section id="view-donor" class="hidden min-h-screen flex-col pb-16">
     
     <!-- Top Announcement Bar -->
@@ -151,18 +291,21 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
         
         <!-- Logo & Organization Title -->
-        <div class="flex items-center gap-3">
-          <img src="logo.png" alt="Ann Logo" class="w-10 h-10 object-contain drop-shadow">
+        <div class="flex items-center gap-3 cursor-pointer group" onclick="switchView('donor')">
+          <div class="relative">
+            <img src="logo.png" alt="Ann Logo" class="w-10 h-10 object-contain drop-shadow ann-logo-img">
+          </div>
           <div>
             <div class="flex items-center gap-2">
               <span class="text-lg font-extrabold text-slate-900">Ann<span class="text-emerald-600">.</span></span>
+              <span class="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-200/70">अन्न</span>
               <span class="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">Donor Portal</span>
             </div>
             <p class="text-[11px] text-slate-500 font-medium" id="donor-profile-name">Royal Spice Caterers • Verified Kitchen</p>
           </div>
         </div>
 
-        <!-- Controls: Profile Drawer & Logout -->
+        <!-- Controls: Profile Drawer & Role Switcher -->
         <div class="flex items-center gap-2.5 sm:gap-3">
           
           <!-- Interactive Donor Profile Pill -->
@@ -176,7 +319,8 @@
             <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-600"></i>
           </button>
 
-          <button onclick="logout()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition">
+
+          <button onclick="logout()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition" title="Sign out to Login Page">
             <i data-lucide="log-out" class="w-3.5 h-3.5 text-slate-500"></i>
             <span>Logout</span>
           </button>
@@ -188,17 +332,21 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
       
       <!-- Hero Action Card -->
-      <div class="bg-gradient-to-r from-emerald-600 to-teal-800 text-white rounded-3xl p-6 sm:p-8 shadow-soft flex flex-col md:flex-row items-center justify-between gap-6">
-        <div>
-          <span class="inline-flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full text-xs font-semibold mb-2">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i> Kitchen Surplus Ready
+      <div class="relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-800 text-white rounded-3xl p-6 sm:p-8 shadow-soft flex flex-col md:flex-row items-center justify-between gap-6">
+        <!-- Ann Brand Watermark in Hero -->
+        <img src="logo.png" alt="" class="ann-hero-watermark" aria-hidden="true">
+
+        <div class="relative z-10">
+          <span class="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold mb-2">
+            <img src="logo.png" alt="" class="w-3.5 h-3.5 object-contain">
+            <span>Kitchen Surplus Ready</span>
           </span>
           <h2 class="text-2xl sm:text-3xl font-extrabold">Have extra food ready?</h2>
           <p class="text-emerald-100 text-xs sm:text-sm mt-1 max-w-xl">
             List fresh leftovers or surplus batch meals in 30 seconds. Verified local shelters will be alerted for immediate pickup.
           </p>
         </div>
-        <button onclick="openDonationModal()" class="bg-white text-emerald-900 hover:bg-emerald-50 font-extrabold px-6 py-3.5 rounded-2xl text-sm shadow-xl transition active:scale-95 flex items-center gap-2">
+        <button onclick="openDonationModal()" class="relative z-10 bg-white text-emerald-900 hover:bg-emerald-50 font-extrabold px-6 py-3.5 rounded-2xl text-sm shadow-xl transition active:scale-95 flex items-center gap-2">
           <i data-lucide="plus-circle" class="w-5 h-5 text-emerald-600"></i>
           <span>+ List Surplus Food</span>
         </button>
@@ -222,6 +370,14 @@
 
             <!-- Dynamic Active Container -->
             <div id="donor-listings-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+            <!-- Donor Pagination Wrapper -->
+            <div id="donor-pagination-wrapper" class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <div class="text-xs text-slate-500 font-medium">
+                Page <strong id="donor-page-current" class="text-slate-900 font-bold">1</strong> of <strong id="donor-page-total" class="text-slate-900 font-bold">5</strong>
+              </div>
+              <div id="donor-pagination-controls" class="flex items-center"></div>
+            </div>
           </div>
 
           <!-- SECTION 2: Claimed by NGOs (Pickup & Dispatch In-Progress) -->
@@ -319,6 +475,27 @@
 
       </div>
     </main>
+
+    <!-- Branded Donor View Footer -->
+    <footer class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-12 pt-6 pb-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div class="flex items-center gap-2.5">
+        <img src="logo.png" alt="Ann Logo" class="w-7 h-7 object-contain drop-shadow">
+        <div>
+          <span class="font-extrabold text-slate-800 text-sm">Ann<span class="text-emerald-600">.</span></span>
+          <span class="text-[11px] text-slate-400 block">Empowering Food Donors • Zero-Waste Network</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] font-medium text-slate-500">
+        <button onclick="openProfileModal()" class="hover:text-emerald-700">Kitchen Settings</button>
+        <span>•</span>
+        <button onclick="openDonationModal()" class="hover:text-emerald-700">New Donation</button>
+        <span>•</span>
+        <button onclick="openTaxReceiptAlert()" class="hover:text-emerald-700">80G Certificate</button>
+        <span>•</span>
+        <span class="text-emerald-700 font-semibold flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> FSSAI Safe</span>
+      </div>
+      <p class="text-[11px] text-slate-400">© 2026 Ann Platform. अन्न परमो धर्मः</p>
+    </footer>
   </section>
 
 
@@ -335,20 +512,54 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
         
         <!-- Logo & Title -->
-        <div class="flex items-center gap-3">
-          <img src="logo.png" alt="Ann Logo" class="w-10 h-10 object-contain drop-shadow">
+        <div class="flex items-center gap-3 cursor-pointer group" onclick="switchView('ngo')">
+          <div class="relative">
+            <img src="logo.png" alt="Ann Logo" class="w-10 h-10 object-contain drop-shadow ann-logo-img">
+          </div>
           <div>
             <div class="flex items-center gap-2">
               <span class="text-lg font-extrabold text-slate-900">Ann<span class="text-blue-600">.</span></span>
+              <span class="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-200/70">अन्न</span>
               <span class="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 px-2 py-0.5 rounded">NGO Portal</span>
             </div>
             <p class="text-[11px] text-slate-500 font-medium" id="ngo-profile-name">Hope Shelter Network • Verified Relief NGO</p>
           </div>
         </div>
 
-        <!-- Controls: Profile Drawer & Logout -->
-        <div class="flex items-center gap-2.5 sm:gap-3">
+        <!-- Controls: Profile Drawer, Notifications & Role Switcher -->
+        <div class="flex items-center gap-2 sm:gap-3">
           
+          <!-- NGO Notification Center -->
+          <div class="relative">
+            <button 
+              id="ngo-notifications-btn"
+              onclick="toggleNgoNotifications()" 
+              class="relative p-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-900 transition flex items-center justify-center"
+              title="Surplus Food Alerts & Notifications"
+            >
+              <i data-lucide="bell" class="w-4 h-4 text-blue-600"></i>
+              <span id="ngo-unread-badge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-black flex items-center justify-center animate-pulse shadow-sm">
+                3
+              </span>
+            </button>
+
+            <!-- Notifications Dropdown Flyout -->
+            <div id="ngo-notifications-panel" class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 py-3 px-3.5 z-50 hidden">
+              <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 rounded-full bg-blue-600 animate-ping"></div>
+                  <h4 class="font-extrabold text-slate-900 text-xs">Live Food Redistribution Alerts</h4>
+                </div>
+                <button onclick="markAllNgoNotificationsRead()" class="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline">
+                  Mark all read
+                </button>
+              </div>
+              <div id="ngo-notifications-list" class="space-y-2 max-h-72 overflow-y-auto">
+                <!-- Dynamically populated notification alerts -->
+              </div>
+            </div>
+          </div>
+
           <!-- Interactive NGO Profile Pill -->
           <button 
             onclick="openProfileModal()" 
@@ -360,7 +571,8 @@
             <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-600"></i>
           </button>
 
-          <button onclick="logout()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition">
+
+          <button onclick="logout()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition" title="Sign out to Login Page">
             <i data-lucide="log-out" class="w-3.5 h-3.5 text-slate-500"></i>
             <span>Logout</span>
           </button>
@@ -371,11 +583,107 @@
     <!-- Main NGO Workspace -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
       
+      <!-- ==================== NGO NEARBY SURPLUS FOOD RADAR MAP ==================== -->
+      <div class="glass-card rounded-3xl p-5 shadow-soft border border-slate-200/80 space-y-4">
+        
+        <!-- Header & Action Controls -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 flex items-center justify-center shadow-xs">
+              <i data-lucide="map" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-extrabold text-slate-900 text-base">Nearby Food Radar Map</h3>
+                <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span> Live 5 km Radius
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 font-medium">Click any pin to preview surplus food details, claim instantly, or generate live GPS route</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button 
+              onclick="recenterNgoMap()" 
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold shadow-xs transition active:scale-95"
+              title="Center on Hope Shelter Station"
+            >
+              <i data-lucide="crosshair" class="w-3.5 h-3.5 text-blue-600"></i>
+              <span>Locate My Shelter</span>
+            </button>
+            <button 
+              id="btn-clear-ngo-route"
+              onclick="clearNgoRoute()" 
+              class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold transition active:scale-95"
+              title="Clear active driving route"
+            >
+              <i data-lucide="x" class="w-3.5 h-3.5 text-red-500"></i>
+              <span>Clear Route</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Category Pills -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <span class="text-slate-400 font-bold text-[11px] shrink-0 mr-1 flex items-center gap-1">
+            <i data-lucide="filter" class="w-3 h-3"></i> Filter Map:
+          </span>
+          <button onclick="filterNgoMapCategory('ALL')" id="ngo-map-btn-ALL" class="ngo-map-filter-btn px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold transition shadow-xs text-xs">
+            All Surplus (20)
+          </button>
+          <button onclick="filterNgoMapCategory('urgent')" id="ngo-map-btn-urgent" class="ngo-map-filter-btn px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs">
+            ⚡ Urgent (&lt;2h)
+          </button>
+          <button onclick="filterNgoMapCategory('Cooked Meals')" id="ngo-map-btn-Cooked-Meals" class="ngo-map-filter-btn px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs">
+            🍲 Cooked Meals
+          </button>
+          <button onclick="filterNgoMapCategory('Bakery & Bread')" id="ngo-map-btn-Bakery" class="ngo-map-filter-btn px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs">
+            🥖 Bakery
+          </button>
+          <button onclick="filterNgoMapCategory('Raw Produce')" id="ngo-map-btn-Produce" class="ngo-map-filter-btn px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs">
+            🥗 Raw Produce
+          </button>
+        </div>
+
+        <!-- Interactive Map Canvas -->
+        <div class="relative rounded-2xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+          <div id="ngo-food-map" class="w-full h-80 sm:h-96 relative z-0"></div>
+          
+          <!-- Floating Map Legend -->
+          <div class="absolute bottom-3 left-3 z-10 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl p-2.5 shadow-md flex items-center gap-3 text-[11px] font-bold text-slate-700">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-xs"></span>
+              <span>Hope Shelter (NGO)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs"></span>
+              <span>Available Food</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-xs"></span>
+              <span>Urgent (&lt;2h)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-400 shadow-xs"></span>
+              <span>Claimed</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
       <!-- Food Radar Header & Search -->
       <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-soft">
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
-          <h3 class="font-bold text-slate-900 text-base">Surplus Food Ready for Pickup</h3>
+        <div class="flex items-center gap-2.5">
+          <img src="logo.png" alt="Ann Logo" class="w-7 h-7 object-contain drop-shadow ann-logo-img">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <span>Surplus Food Ready for Pickup</span>
+              <span class="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">Ann Dispatch</span>
+            </h3>
+            <p class="text-[11px] text-slate-400">Live listings verified across donor kitchens</p>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <input 
@@ -388,198 +696,518 @@
       </div>
 
       <!-- Dynamic Cards Container -->
-      <div id="ngo-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="ngo-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+      <!-- Pagination Controls (Matching Uploaded Design) -->
+      <div id="ngo-pagination-wrapper" class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-soft">
+        <div class="text-xs text-slate-500 font-medium">
+          Showing <strong id="ngo-page-range" class="text-slate-900 font-bold">1 - 3</strong> of <strong id="ngo-total-count" class="text-slate-900 font-bold">20</strong> available surplus meals
+        </div>
+        <div id="ngo-pagination-controls" class="flex items-center"></div>
+      </div>
 
     </main>
+
+    <!-- Branded NGO View Footer -->
+    <footer class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-12 pt-6 pb-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div class="flex items-center gap-2.5">
+        <img src="logo.png" alt="Ann Logo" class="w-7 h-7 object-contain drop-shadow">
+        <div>
+          <span class="font-extrabold text-slate-800 text-sm">Ann<span class="text-blue-600">.</span></span>
+          <span class="text-[11px] text-slate-400 block">NGO Logistics & Relief Network • Zero-Waste Alliance</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] font-medium text-slate-500">
+        <button onclick="openProfileModal()" class="hover:text-blue-700">NGO Credentials</button>
+        <span>•</span>
+        <button onclick="recenterNgoMap()" class="hover:text-blue-700">Radar Map</button>
+        <span>•</span>
+        <span class="text-blue-700 font-semibold flex items-center gap-1"><i data-lucide="award" class="w-3.5 h-3.5"></i> Darpan Verified</span>
+      </div>
+      <p class="text-[11px] text-slate-400">© 2026 Ann Platform. अन्नम् न परिचक्षीत</p>
+    </footer>
   </section>
 
 
-  <!-- ==================== GMAIL NOTIFICATION TOAST ==================== -->
-  <div id="gmail-toast" class="fixed top-5 right-5 z-50 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 hidden items-start gap-3 max-w-sm transition-all duration-300">
-    <div class="w-9 h-9 rounded-xl bg-red-500 flex items-center justify-center font-bold text-white shrink-0 shadow">
-      <i data-lucide="mail" class="w-5 h-5"></i>
-    </div>
-    <div class="flex-1 min-w-0 text-xs">
-      <div class="flex items-center justify-between">
-        <span class="font-bold text-slate-200">Google Mail • Ann Security</span>
-        <span class="text-[10px] text-slate-400">Just now</span>
+  <!-- ==================== VIEW 3: SECURE PRODUCTION ADMIN DASHBOARD ==================== -->
+  <section id="view-admin" class="hidden min-h-screen flex flex-col md:flex-row bg-slate-950 text-slate-100 antialiased font-sans">
+    
+    <!-- Sidebar -->
+    <aside class="w-full md:w-64 bg-slate-900/90 border-r border-slate-800 flex flex-col justify-between shrink-0">
+      <div>
+        <!-- Sidebar Brand -->
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-3 cursor-pointer group" onclick="switchAdminTab('overview')">
+            <div class="relative">
+              <img src="logo.png" alt="Ann Logo" class="w-10 h-10 object-contain drop-shadow ann-logo-img">
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-extrabold text-base tracking-tight text-white">Ann Admin</span>
+                <span class="text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">RBAC</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Enterprise Control Hub</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <nav class="p-3 space-y-1">
+          <button 
+            id="admin-nav-overview" 
+            onclick="switchAdminTab('overview')"
+            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30"
+          >
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Overview & Metrics</span>
+          </button>
+
+          <button 
+            id="admin-nav-listings" 
+            onclick="switchAdminTab('listings')"
+            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+          >
+            <i data-lucide="utensils-crossed" class="w-4 h-4"></i>
+            <span>Resource Manager</span>
+          </button>
+
+          <button 
+            id="admin-nav-users" 
+            onclick="switchAdminTab('users')"
+            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+          >
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>User Accounts</span>
+          </button>
+
+          <button 
+            id="admin-nav-analytics" 
+            onclick="switchAdminTab('analytics')"
+            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+          >
+            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+            <span>Impact Analytics</span>
+          </button>
+
+          <button 
+            id="admin-nav-audit" 
+            onclick="switchAdminTab('audit')"
+            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+          >
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+            <span>Audit Trail</span>
+          </button>
+        </nav>
       </div>
-      <p class="text-slate-300 mt-1">Your 6-digit login verification code is <strong id="toast-otp-code" class="text-amber-300 font-mono text-sm tracking-wider">123456</strong>.</p>
-      <button onclick="quickFillOtp()" class="mt-2 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
-        <i data-lucide="zap" class="w-3 h-3"></i> Quick Fill & Verify
-      </button>
-    </div>
-    <button onclick="dismissGmailToast()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
-  </div>
 
+      <!-- Sidebar Footer User Profile -->
+      <div class="p-4 border-t border-slate-800 space-y-3 bg-slate-950/50">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow">
+              SA
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white leading-tight">Sarah Connor</p>
+              <span class="text-[10px] text-amber-400 font-mono font-semibold">SUPER_ADMIN</span>
+            </div>
+          </div>
+          <button onclick="logout()" class="text-slate-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-800 transition" title="Sign out to Login">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
 
-  <!-- ==================== MODAL 1: GOOGLE AUTHENTICATION WITH OTP ==================== -->
-  <div id="google-auth-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
+          <button onclick="switchView('donor')" class="text-emerald-400 hover:underline">Donor View</button>
+          <span class="text-slate-600">•</span>
+          <button onclick="switchView('ngo')" class="text-blue-400 hover:underline">NGO View</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col overflow-y-auto bg-slate-950 min-h-screen">
       
-      <!-- STEP 1: SELECT OR ENTER GMAIL -->
-      <div id="auth-step-email">
-        <!-- Modal Header with Google Branding -->
-        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div class="flex items-center gap-2.5">
-            <svg class="w-6 h-6" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-            </svg>
-            <div>
-              <h3 class="font-extrabold text-slate-900 text-base">Sign in with Google</h3>
-              <p class="text-[11px] text-slate-500">Choose account to send OTP verification</p>
-            </div>
-          </div>
-          <button onclick="closeGoogleAuthModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500">
-            <i data-lucide="x" class="w-4 h-4"></i>
+      <!-- Top Bar -->
+      <header class="h-16 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/60 backdrop-blur sticky top-0 z-20">
+        <div class="flex items-center gap-3">
+          <img src="logo.png" alt="Ann Logo" class="w-8 h-8 object-contain drop-shadow ann-logo-img">
+          <h2 id="admin-header-title" class="text-base sm:text-lg font-extrabold text-white">System Analytics & Health Overview</h2>
+          <span class="hidden sm:inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Live REST API Sync
+          </span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button 
+            onclick="adminExportCSV('current')"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition active:scale-95"
+            title="Download CSV report"
+          >
+            <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Export CSV</span>
           </button>
         </div>
+      </header>
 
-        <!-- Quick Verified Gmail Selectors -->
-        <div class="py-4 space-y-2.5">
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Saved Accounts</p>
-          
-          <!-- Account 1: Food Donor Chef -->
-          <button 
-            onclick="selectGoogleAccount('chef.royalspice@gmail.com', 'Royal Spice Caterers', 'donor')"
-            class="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-emerald-50/70 border border-slate-200 hover:border-emerald-300 transition text-left group"
-          >
-            <div class="flex items-center gap-3">
-              <img src="https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=100&auto=format&fit=crop&q=80" class="w-10 h-10 rounded-full object-cover border border-emerald-500">
-              <div>
-                <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700">Royal Spice Caterers</h4>
-                <p class="text-xs text-slate-500">chef.royalspice@gmail.com</p>
+      <!-- Dynamic Tab Container -->
+      <div class="p-6 space-y-6 max-w-7xl w-full mx-auto">
+        
+        <!-- ==================== TAB 1: OVERVIEW ==================== -->
+        <div id="admin-panel-overview" class="space-y-6">
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-sm relative overflow-hidden">
+              <div class="absolute -right-2 -bottom-2 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl"></div>
+              <span class="text-xs font-semibold text-slate-400">Total Servings Rescued</span>
+              <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl font-black text-white">89,450</span>
+                <span class="text-xs font-bold text-emerald-400 flex items-center gap-0.5 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                  +14.2% ↑
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-2">Diverted from urban landfills</p>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-sm relative overflow-hidden">
+              <div class="absolute -right-2 -bottom-2 w-16 h-16 bg-blue-500/5 rounded-full blur-xl"></div>
+              <span class="text-xs font-semibold text-slate-400">Total Waste Diverted</span>
+              <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl font-black text-white">35,780 kg</span>
+                <span class="text-xs font-bold text-emerald-400 flex items-center gap-0.5 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                  +18.5% ↑
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-2">Calculated in real-time metrics</p>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-sm relative overflow-hidden">
+              <span class="text-xs font-semibold text-slate-400">Verified Network Partners</span>
+              <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl font-black text-white">1,248</span>
+                <span class="text-xs font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                  Active Grid
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-2">580 Donors • 668 NGOs & Shelters</p>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-sm relative overflow-hidden">
+              <span class="text-xs font-semibold text-slate-400">Handover Success Rate</span>
+              <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl font-black text-emerald-400">94.8%</span>
+                <span class="text-xs font-bold text-slate-400">3,980 claims</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-2">OTP verified deliveries</p>
+            </div>
+          </div>
+
+          <!-- Live Network Feed & Visual Stats -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 p-5 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-sm">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+                  <span>Monthly Redistribution Volumes (Servings Rescued)</span>
+                </h3>
+                <span class="text-xs text-slate-400 font-mono">Q1 - Q2 2026</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300 font-medium">May (28,900 servings)</span>
+                    <span class="text-emerald-400 font-bold">100%</span>
+                  </div>
+                  <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style="width: 100%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300 font-medium">April (24,200 servings)</span>
+                    <span class="text-emerald-400 font-bold">83.7%</span>
+                  </div>
+                  <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style="width: 83.7%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300 font-medium">March (19,800 servings)</span>
+                    <span class="text-emerald-400 font-bold">68.5%</span>
+                  </div>
+                  <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style="width: 68.5%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300 font-medium">February (15,600 servings)</span>
+                    <span class="text-emerald-400 font-bold">53.9%</span>
+                  </div>
+                  <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style="width: 53.9%"></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <span class="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Send OTP</span>
-          </button>
 
-          <!-- Account 2: NGO Hope Shelter -->
-          <button 
-            onclick="selectGoogleAccount('contact.hopeshelter@gmail.com', 'Hope Shelter Network', 'ngo')"
-            class="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 transition text-left group"
-          >
-            <div class="flex items-center gap-3">
-              <img src="https://images.unsplash.com/photo-1593113598332-cd288d649433?w=100&auto=format&fit=crop&q=80" class="w-10 h-10 rounded-full object-cover border border-blue-500">
+            <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
-                <h4 class="font-bold text-slate-900 text-sm group-hover:text-blue-700">Hope Shelter Network</h4>
-                <p class="text-xs text-slate-500">contact.hopeshelter@gmail.com</p>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                  <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i>
+                  <span>Security & Platform Health</span>
+                </h3>
+                <ul class="space-y-2.5 text-xs text-slate-300">
+                  <li class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                    <span>API Rate Limiter</span>
+                    <span class="font-bold text-emerald-400 font-mono">100 req/15m</span>
+                  </li>
+                  <li class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                    <span>RBAC Authorization</span>
+                    <span class="font-bold text-emerald-400 font-mono">ENFORCED</span>
+                  </li>
+                  <li class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                    <span>Audit Trail Sync</span>
+                    <span class="font-bold text-emerald-400 font-mono">ACTIVE</span>
+                  </li>
+                  <li class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                    <span>XSS & CORS Whitelist</span>
+                    <span class="font-bold text-emerald-400 font-mono">PROTECTED</span>
+                  </li>
+                </ul>
               </div>
+              <button onclick="switchAdminTab('audit')" class="w-full mt-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition">
+                Inspect Security Audit Trail →
+              </button>
             </div>
-            <span class="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Send OTP</span>
-          </button>
+          </div>
         </div>
 
-        <!-- Custom Gmail Sign-in Form -->
-        <div class="pt-3 border-t border-slate-100">
-          <p class="text-xs font-semibold text-slate-500 mb-2">Or use another Gmail address:</p>
-          <form onsubmit="handleCustomGoogleAuth(event)" class="space-y-3">
-            <input 
-              type="email" 
-              id="google-custom-email" 
-              required 
-              placeholder="yourname@gmail.com" 
-              class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 font-medium"
-            >
-            <div class="grid grid-cols-2 gap-2">
-              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 text-xs font-medium">
-                <input type="radio" name="custom-role" value="donor" checked class="text-emerald-600">
-                <span>Food Donor</span>
-              </label>
-              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 text-xs font-medium">
-                <input type="radio" name="custom-role" value="ngo" class="text-blue-600">
-                <span>NGO Shelter</span>
-              </label>
+        <!-- ==================== TAB 2: RESOURCE / LISTINGS CRUD ==================== -->
+        <div id="admin-panel-listings" class="hidden space-y-4">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <div class="relative w-full sm:w-72">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input 
+                type="text" 
+                id="admin-search-listings"
+                oninput="renderAdminListingsTable(this.value)"
+                placeholder="Search food, batch ID, or donor..." 
+                class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              >
             </div>
-            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center gap-1.5">
-              <span>Send Verification OTP</span>
-              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            <button 
+              onclick="openAdminCreateListingModal()"
+              class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition active:scale-95"
+            >
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Add Resource Listing</span>
             </button>
-          </form>
+          </div>
+
+          <!-- Listings Table -->
+          <div class="rounded-2xl border border-slate-800 overflow-hidden bg-slate-900/60">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800">
+                  <tr>
+                    <th class="p-3.5">Listing Title</th>
+                    <th class="p-3.5">Category</th>
+                    <th class="p-3.5">Quantity & Servings</th>
+                    <th class="p-3.5">Donor Kitchen</th>
+                    <th class="p-3.5">Status</th>
+                    <th class="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-listings-table-body" class="divide-y divide-slate-800/80">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+            <!-- Admin Listings Pagination Footer -->
+            <div class="p-3.5 bg-slate-900/90 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <span class="text-slate-400">Showing <strong id="admin-listings-page-range" class="text-white">1 - 5</strong> of <strong id="admin-listings-total" class="text-white">20</strong> resource items</span>
+              <div id="admin-listings-pagination" class="flex items-center"></div>
+            </div>
+          </div>
         </div>
+
+        <!-- ==================== TAB 3: USER MANAGEMENT ==================== -->
+        <div id="admin-panel-users" class="hidden space-y-4">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <div class="relative w-full sm:w-72">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input 
+                type="text" 
+                id="admin-search-users"
+                oninput="renderAdminUsersTable(this.value)"
+                placeholder="Search user name, email, or license..." 
+                class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              >
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">Total Partners: <strong id="admin-user-count" class="text-white font-mono">3</strong></span>
+            </div>
+          </div>
+
+          <!-- Users Table -->
+          <div class="rounded-2xl border border-slate-800 overflow-hidden bg-slate-900/60">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800">
+                  <tr>
+                    <th class="p-3.5">Organization / User</th>
+                    <th class="p-3.5">Role Tier (RBAC)</th>
+                    <th class="p-3.5">License / Verification</th>
+                    <th class="p-3.5">Account Status</th>
+                    <th class="p-3.5 text-right">Administrative Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-table-body" class="divide-y divide-slate-800/80">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TAB 4: ENVIRONMENTAL ANALYTICS ==================== -->
+        <div id="admin-panel-analytics" class="hidden space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 text-center">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="leaf" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-2xl font-black text-white">89,450 kg</h4>
+              <p class="text-xs font-bold text-emerald-400 mt-1">CO₂ Atmospheric Offset</p>
+              <p class="text-[11px] text-slate-400 mt-2">Calculated at 2.5 kg CO₂e diverted per 1 kg food waste</p>
+            </div>
+
+            <div class="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 text-center">
+              <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="droplet" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-2xl font-black text-white">14.3M Liters</h4>
+              <p class="text-xs font-bold text-blue-400 mt-1">Freshwater Conserved</p>
+              <p class="text-[11px] text-slate-400 mt-2">Embedded water footprint preserved in meal recovery</p>
+            </div>
+
+            <div class="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 text-center">
+              <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="dollar-sign" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-2xl font-black text-white">₹ 44.7 Lakhs</h4>
+              <p class="text-xs font-bold text-amber-400 mt-1">Direct Community Relief Value</p>
+              <p class="text-[11px] text-slate-400 mt-2">Calculated at average institutional meal preparation cost</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TAB 5: AUDIT TRAIL ==================== -->
+        <div id="admin-panel-audit" class="hidden space-y-4">
+          <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-emerald-400"></i>
+                <span>Immutable Administrative Audit Log</span>
+              </h3>
+              <span class="text-[11px] text-slate-400 font-mono">Encrypted Hash Verified</span>
+            </div>
+            <div id="admin-audit-log-container" class="space-y-2.5 font-mono text-xs">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      <!-- STEP 2: ENTER OTP VERIFICATION CODE -->
-      <div id="auth-step-otp" class="hidden">
-        <!-- Header with Back Button -->
-        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div class="flex items-center gap-2.5">
-            <button onclick="backToEmailStep()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition" title="Change Email">
-              <i data-lucide="arrow-left" class="w-4 h-4"></i>
-            </button>
-            <div>
-              <h3 class="font-extrabold text-slate-900 text-base">Enter Verification Code</h3>
-              <p class="text-[11px] text-slate-500 flex items-center gap-1">
-                <span>Code sent to</span>
-                <strong id="otp-target-email" class="text-slate-800">user@gmail.com</strong>
-              </p>
-            </div>
+      <!-- Admin Workspace Branded Status Footer -->
+      <footer class="mt-auto py-4 px-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 bg-slate-950/80">
+        <div class="flex items-center gap-2.5">
+          <img src="logo.png" alt="Ann Logo" class="w-5 h-5 object-contain drop-shadow">
+          <span class="text-slate-300 font-semibold">Ann Enterprise Control Hub</span>
+          <span class="text-[10px] text-slate-500 font-mono">• Production V2.4</span>
+        </div>
+        <div class="flex items-center gap-4 text-[11px] text-slate-400">
+          <span class="text-emerald-400 flex items-center gap-1.5 font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Network Active
+          </span>
+          <span>•</span>
+          <span>Zero-Waste Redistribution Protocol</span>
+          <span>•</span>
+          <span>Audit Secured</span>
+        </div>
+      </footer>
+    </main>
+  </section>
+
+  <!-- ==================== MODAL: ADMIN ADD LISTING ==================== -->
+  <div id="admin-create-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl text-white">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <img src="logo.png" alt="Ann Logo" class="w-8 h-8 object-contain drop-shadow ann-logo-img">
+          <div>
+            <h3 class="font-extrabold text-base flex items-center gap-2 text-white">
+              <span>Admin Resource Override Entry</span>
+            </h3>
+            <p class="text-[11px] text-slate-400">Ann Central Command Redistribution</p>
           </div>
-          <button onclick="closeGoogleAuthModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500">
-            <i data-lucide="x" class="w-4 h-4"></i>
+        </div>
+        <button onclick="closeAdminCreateModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <form onsubmit="handleAdminCreateListing(event)" class="py-4 space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Resource / Meal Title</label>
+          <input type="text" id="admin-new-title" required placeholder="e.g. 50 Packs Vegetable Pulao" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 outline-none focus:border-emerald-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">Quantity (kg)</label>
+            <input type="number" id="admin-new-kg" required value="25" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">Servings Count</label>
+            <input type="number" id="admin-new-servings" required value="75" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Category</label>
+          <select id="admin-new-category" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 outline-none focus:border-emerald-500">
+            <option value="Cooked Meals">Cooked Meals</option>
+            <option value="Bakery & Bread">Bakery & Bread</option>
+            <option value="Raw Produce">Raw Produce</option>
+            <option value="Packaged Dry">Packaged Dry</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Assigned Donor Kitchen</label>
+          <input type="text" id="admin-new-donor" required value="Royal Spice Caterers" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 outline-none focus:border-emerald-500">
+        </div>
+        <div class="pt-3">
+          <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow transition active:scale-95">
+            Create Resource Listing
           </button>
         </div>
-
-        <!-- OTP Verification Form -->
-        <form onsubmit="handleOtpSubmit(event)" class="py-5 space-y-4">
-          <div class="text-center space-y-1.5">
-            <label class="block text-xs font-bold text-slate-700">6-Digit Gmail OTP</label>
-            <input 
-              type="text" 
-              id="otp-input" 
-              maxlength="6" 
-              required 
-              autofocus 
-              placeholder="••••••" 
-              class="w-full text-center font-mono font-extrabold text-2xl tracking-[0.5em] px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-200 outline-none focus:bg-white focus:border-emerald-500 transition shadow-inner"
-            >
-            <p id="otp-error-msg" class="text-xs text-red-500 font-semibold hidden"></p>
-          </div>
-
-          <!-- Quick Fill Helper Chip -->
-          <button 
-            type="button" 
-            id="quick-fill-btn" 
-            onclick="quickFillOtp()" 
-            class="w-full text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs"
-          >
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i>
-            <span id="quick-fill-text">Click to Auto-Fill Received OTP</span>
-          </button>
-
-          <!-- Resend Timer -->
-          <div class="flex items-center justify-between text-xs text-slate-500 px-1 pt-1">
-            <span id="otp-timer-display">Resend code in <strong id="otp-timer-seconds" class="text-slate-800 font-bold">30</strong>s</span>
-            <button type="button" id="btn-resend-otp" onclick="resendOtp()" class="font-bold text-emerald-600 hover:text-emerald-700 hover:underline hidden">
-              Resend Code
-            </button>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="pt-2">
-            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md hover:shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
-              <i data-lucide="shield-check" class="w-4 h-4"></i>
-              <span>Verify & Sign In</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
+      </form>
     </div>
   </div>
 
 
-  <!-- ==================== MODAL 2: USER PROFILE (DONOR & NGO) ==================== -->
+  <!-- ==================== MODAL: USER PROFILE (DONOR & NGO) ==================== -->
   <div id="profile-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
       
       <!-- Profile Header -->
       <div class="flex items-center justify-between pb-4 border-b border-slate-100">
         <div class="flex items-center gap-3">
-          <img id="profile-modal-avatar" src="" class="w-12 h-12 rounded-2xl object-cover border-2 border-emerald-500 shadow-sm">
+          <div class="relative">
+            <img id="profile-modal-avatar" src="" class="w-12 h-12 rounded-2xl object-cover border-2 border-emerald-500 shadow-sm">
+            <img src="logo.png" alt="Ann" class="w-4 h-4 object-contain absolute -bottom-1 -right-1 drop-shadow bg-white rounded-full p-0.5 border border-slate-200">
+          </div>
           <div>
             <div class="flex items-center gap-2">
               <h3 class="font-extrabold text-slate-900 text-lg" id="profile-modal-name">Profile Details</h3>
@@ -588,7 +1216,7 @@
             <p class="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
               <i data-lucide="mail" class="w-3.5 h-3.5 text-slate-400"></i>
               <span id="profile-modal-email">user@gmail.com</span>
-              <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded ml-1">Verified via Google</span>
+              <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded ml-1">Verified Member</span>
             </p>
           </div>
         </div>
@@ -798,12 +1426,12 @@
       <!-- Header -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-            <i data-lucide="navigation" class="w-5 h-5"></i>
+          <div class="relative">
+            <img src="logo.png" alt="Ann Logo" class="w-10 h-10 object-contain drop-shadow ann-logo-img">
           </div>
           <div>
             <h3 class="font-bold text-slate-900 text-base" id="route-modal-title">Donor GPS Pickup Route</h3>
-            <p class="text-xs text-slate-500" id="route-modal-subtitle">Direct route to Donor Kitchen</p>
+            <p class="text-xs text-slate-500" id="route-modal-subtitle">Direct route via Ann Logistics</p>
           </div>
         </div>
         <button onclick="closeGpsRouteModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500">
@@ -852,6 +1480,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Real-time Toast Notifications Floating Container -->
+  <div id="ngo-toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
 </body>
 </html>

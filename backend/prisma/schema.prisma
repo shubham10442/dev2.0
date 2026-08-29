@@ -1,0 +1,156 @@
+// prisma/schema.prisma
+// Production PostgreSQL Schema for Ann Surplus Food Redistribution & Admin Operations
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  DISPATCHER
+  DONOR
+  NGO
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  REJECTED
+}
+
+enum ListingStatus {
+  AVAILABLE
+  CLAIMED
+  IN_TRANSIT
+  DELIVERED
+  EXPIRED
+  CANCELLED
+}
+
+enum FoodType {
+  COOKED_MEALS
+  BAKERY_BREAD
+  RAW_PRODUCE
+  PACKAGED_DRY
+  DAIRY
+  BEVERAGES
+}
+
+enum ActionType {
+  USER_CREATE
+  USER_ROLE_CHANGE
+  USER_STATUS_CHANGE
+  USER_SUSPEND
+  USER_DELETE
+  LISTING_CREATE
+  LISTING_UPDATE
+  LISTING_STATUS_OVERRIDE
+  LISTING_DELETE
+  CLAIM_FORCE_CANCEL
+  SYSTEM_CONFIG_UPDATE
+}
+
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  passwordHash    String
+  name            String
+  role            Role           @default(DONOR)
+  status          AccountStatus  @default(PENDING_VERIFICATION)
+  avatarUrl       String?
+  phone           String?
+  organization    String?
+  licenseId       String?        // FSSAI or NGO Darpan ID
+  address         String?
+  latitude        Float?
+  longitude       Float?
+  lastLoginAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relationships
+  donatedListings FoodListing[]  @relation("DonorListings")
+  claimedListings Claim[]        @relation("NgoClaims")
+  auditActions    AuditLog[]     @relation("AdminAuditActions")
+
+  @@index([email])
+  @@index([role, status])
+}
+
+model FoodListing {
+  id              String         @id @default(uuid())
+  title           String
+  description     String?
+  foodType        FoodType       @default(COOKED_MEALS)
+  quantityKg      Float
+  servingsCount   Int
+  preparationTime DateTime?
+  expiryTime      DateTime
+  pickupWindow    String
+  status          ListingStatus  @default(AVAILABLE)
+  locationAddress String
+  latitude        Float
+  longitude       Float
+  dietaryTags     String[]       // e.g. ["Vegetarian", "Nut-Free"]
+  imageUrl        String?
+  storageTemp     String?        // e.g. "Refrigerated < 4°C"
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relationships
+  donorId         String
+  donor           User           @relation("DonorListings", fields: [donorId], references: [id], onDelete: Cascade)
+  claims          Claim[]
+
+  @@index([status, expiryTime])
+  @@index([donorId])
+  @@index([foodType])
+}
+
+model Claim {
+  id              String         @id @default(uuid())
+  listingId       String
+  listing         FoodListing    @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  ngoId           String
+  ngo             User           @relation("NgoClaims", fields: [ngoId], references: [id], onDelete: Cascade)
+  verificationOtp String         // 6-digit handover OTP
+  pickupStatus    String         @default("RESERVED") // RESERVED, DISPATCHED, COMPLETED, CANCELLED
+  claimedAt       DateTime       @default(now())
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+
+  @@index([listingId])
+  @@index([ngoId])
+}
+
+model AuditLog {
+  id              String         @id @default(uuid())
+  actorId         String
+  actor           User           @relation("AdminAuditActions", fields: [actorId], references: [id], onDelete: Cascade)
+  action          ActionType
+  entityType      String         // e.g., "User", "FoodListing", "SystemConfig"
+  entityId        String?
+  metadataBefore  Json?
+  metadataAfter   Json?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime       @default(now())
+
+  @@index([actorId])
+  @@index([action, createdAt])
+}
+
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}

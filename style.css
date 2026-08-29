@@ -60,7 +60,7 @@ body {
 }
 
 ::selection {
-  background: #d4e7db;
+  background: #e7d4e2;
   color: #163323;
 }
 
@@ -295,7 +295,6 @@ select:focus {
 }
 
 /* Modal Backdrops with Warm Botanical Soft Blur */
-#google-auth-modal,
 #profile-modal,
 #donation-modal,
 #gps-route-modal {
@@ -304,7 +303,6 @@ select:focus {
   -webkit-backdrop-filter: blur(8px) !important;
 }
 
-#google-auth-modal > div,
 #profile-modal > div,
 #donation-modal > div,
 #gps-route-modal > div {
@@ -404,3 +402,165 @@ button:has(svg path[fill="#4285F4"]):hover {
   border-color: #b5c7bc !important;
   box-shadow: 0 8px 20px -3px rgba(40, 55, 45, 0.12) !important;
 }
+
+/* --- 12. Component Pagination Bar (Clean Bordered Frame matching user design) --- */
+.pagination-container {
+  display: inline-flex;
+  align-items: stretch;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  user-select: none;
+}
+
+.pagination-container button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #4b5563;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pagination-container button:hover:not(:disabled) {
+  color: #111827;
+  background-color: #f9fafb;
+}
+
+.pagination-container button:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.pagination-container .pagination-prev {
+  border-right: 1px solid #e5e7eb;
+}
+
+.pagination-container .pagination-next {
+  border-left: 1px solid #e5e7eb;
+}
+
+.pagination-container .pagination-num {
+  min-width: 2.25rem;
+  justify-content: center;
+}
+
+.pagination-container .pagination-active {
+  border-left: 2px solid #1e293b;
+  border-right: 2px solid #1e293b;
+  font-weight: 800;
+  color: #0f172a;
+  background-color: #ffffff;
+  padding: 0.5rem 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  font-size: 0.82rem;
+}
+
+.pagination-container .pagination-dots {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #9ca3af;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- 13. NGO Radar Map Markers & Popup Enhancements --- */
+.custom-food-marker, .custom-shelter-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 1.25rem !important;
+  box-shadow: 0 14px 30px -4px rgba(15, 23, 42, 0.18), 0 6px 12px -3px rgba(15, 23, 42, 0.1) !important;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px !important;
+  line-height: 1.35 !important;
+}
+
+/* Toast Notifications Animation */
+@keyframes toastSlideIn {
+  from {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.ngo-toast {
+  animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   Ann Brand Emblem & Logo Styles
+   ========================================================================== */
+.ann-logo-img {
+  transition: transform 0.25s ease, filter 0.25s ease;
+  filter: drop-shadow(0 2px 6px rgba(180, 87, 59, 0.15));
+}
+
+.ann-logo-img:hover {
+  transform: scale(1.06);
+  filter: drop-shadow(0 4px 12px rgba(214, 137, 54, 0.3));
+}
+
+.ann-logo-glow {
+  box-shadow: 0 0 20px -2px rgba(234, 160, 35, 0.35);
+}
+
+.ann-hero-watermark {
+  position: absolute;
+  right: -20px;
+  bottom: -25px;
+  width: 170px;
+  height: 170px;
+  opacity: 0.12;
+  pointer-events: none;
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
+  transform: rotate(-10deg);
+  transition: opacity 0.3s ease, transform 0.5s ease;
+}
+
+.bg-gradient-to-r:hover .ann-hero-watermark {
+  opacity: 0.18;
+  transform: rotate(-5deg) scale(1.05);
+}
+
+.ann-empty-state-logo {
+  animation: annLogoPulse 3s ease-in-out infinite;
+}
+
+@keyframes annLogoPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.95;
+  }
+}
+
+
+
