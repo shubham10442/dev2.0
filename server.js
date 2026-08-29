@@ -906,6 +906,7 @@ app.get('/api/certificate/80g', (req, res) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Section 80G Tax Exemption Certificate — ${donor.name}</title>
+  <link rel="icon" type="image/png" href="/logo.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @media print {
@@ -932,13 +933,18 @@ app.get('/api/certificate/80g', (req, res) => {
   <!-- Main Certificate Box -->
   <div class="cert-container max-w-3xl w-full bg-white rounded-3xl p-8 sm:p-12 shadow-2xl border-4 border-double border-emerald-700 relative overflow-hidden">
     
-    <!-- Background Watermark -->
+    <!-- Background Watermark with Logo -->
     <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-      <span class="text-9xl font-black text-emerald-900 rotate-[-25deg]">VERIFIED 80G</span>
+      <img src="/logo.png" alt="Watermark" class="w-80 h-80 object-contain">
     </div>
 
-    <!-- Header -->
+    <!-- Header with Official Ann Logo -->
     <div class="text-center pb-6 border-b-2 border-emerald-700">
+      <div class="flex items-center justify-center mb-3">
+        <div class="w-16 h-16 rounded-2xl bg-white p-1 shadow-sm border border-amber-200 ring-2 ring-emerald-600/30 flex items-center justify-center">
+          <img src="/logo.png" alt="Ann Official Logo" class="w-full h-full object-contain">
+        </div>
+      </div>
       <div class="inline-block bg-emerald-100 text-emerald-900 text-[11px] font-extrabold uppercase px-3 py-1 rounded-full mb-2">
         FORM 10BE • SECTION 80G(5)(vi) EXEMPTION CERTIFICATE
       </div>

@@ -1,8 +1,11 @@
 /* ==========================================================================
    Ann — Frontend Client: Auth, Profiles, Listings, GPS & REST API
+   Cleaned & Streamlined Production Architecture
    ========================================================================== */
 
-// 1. State Management
+// 1. Global State & DOM Helpers
+const $ = (id) => document.getElementById(id);
+
 let currentRole = null;
 let currentEntity = '';
 let currentEmail = '';
@@ -20,11 +23,14 @@ let routeMap = null;
 let signUpMap = null;
 let signUpMarker = null;
 
-// NGO Real-Time Food Alert Notifications State
+// NGO Real-Time Alert State
 const NGO_NOTIFS_KEY = 'ann_ngo_notifications_v2';
 let ngoNotifications = [];
 let ngoSoundEnabled = true;
 let ngoToastTimer = null;
+
+const isServerEnv = window.location.protocol.startsWith('http');
+const API_BASE = isServerEnv ? '/api' : null;
 
 // Cross-tab Real-Time Synchronization Channel
 const gridChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('ann_food_grid_sync') : null;
@@ -32,115 +38,54 @@ const gridChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChann
 if (gridChannel) {
   gridChannel.onmessage = (event) => {
     const { type, payload } = event.data || {};
-    if (type === 'listing:created') {
-      loadListings().then(() => {
-        if (currentRole === 'donor') {
-          renderDonorCards();
-        } else if (currentRole === 'ngo') {
-          renderNgoCards();
-          if (payload) showNgoFoodAlert(payload);
-        }
-        updateImpactStats();
-      });
-    } else if (type === 'listing:claimed') {
-      loadListings().then(() => {
-        if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') {
-          renderNgoCards();
-          if (payload && payload.id) markNgoNotificationClaimed(payload.id);
-        }
-        updateImpactStats();
-      });
-    } else if (type === 'listing:deleted') {
-      loadListings().then(() => {
-        if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') {
-          renderNgoCards();
-          if (payload && payload.id) removeNgoNotification(payload.id);
-        }
-      });
-    }
+    const action = type ? type.replace('listing:', '') : '';
+    if (action) handleListingSync(action, payload);
   };
 }
 
-const isServerEnv = window.location.protocol.startsWith('http');
-const API_BASE = isServerEnv ? '/api' : null;
+// Unified Listing Sync Dispatcher for SSE and Cross-Tab
+function handleListingSync(action, payload) {
+  loadListings().then(() => {
+    if (currentRole === 'donor') {
+      renderDonorCards();
+    } else if (currentRole === 'ngo') {
+      renderNgoCards();
+      if (action === 'created' && payload) showNgoFoodAlert(payload);
+      else if (action === 'claimed' && payload?.id) markNgoNotificationClaimed(payload.id);
+      else if (action === 'deleted' && payload?.id) removeNgoNotification(payload.id);
+    }
+    updateImpactStats();
+  });
+}
 
-// Real-Time Server-Sent Events (SSE) Listener with Reconnect Support
+// Real-Time Server-Sent Events (SSE) Listener
 function initSSE() {
   if (!isServerEnv || typeof EventSource === 'undefined') return;
   try {
     const sse = new EventSource('/api/events');
 
-    sse.onopen = () => {
-      console.log('⚡ SSE connection active for real-time surplus food alerts');
-    };
-
-    sse.onerror = (err) => {
-      console.warn('SSE connection disrupted; browser will auto-reconnect', err);
-    };
-
     sse.addEventListener('listing:created', (e) => {
-      let createdItem = null;
-      try {
-        if (e.data) createdItem = JSON.parse(e.data);
-      } catch (err) {}
-
-      loadListings().then(() => {
-        if (currentRole === 'donor') {
-          renderDonorCards();
-        } else if (currentRole === 'ngo') {
-          renderNgoCards();
-          const target = createdItem || (listings.length > 0 ? listings[0] : null);
-          if (target) showNgoFoodAlert(target);
-        }
-        updateImpactStats();
-      });
+      let data = null;
+      try { data = e.data ? JSON.parse(e.data) : null; } catch (_) {}
+      handleListingSync('created', data);
     });
 
     sse.addEventListener('listing:claimed', (e) => {
       beep(659, 'sine', 0.25);
-      let claimedItem = null;
-      try {
-        if (e.data) claimedItem = JSON.parse(e.data);
-      } catch (err) {}
-
-      loadListings().then(() => {
-        if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') {
-          renderNgoCards();
-          if (claimedItem && claimedItem.id) {
-            markNgoNotificationClaimed(claimedItem.id);
-          }
-        }
-        updateImpactStats();
-      });
+      let data = null;
+      try { data = e.data ? JSON.parse(e.data) : null; } catch (_) {}
+      handleListingSync('claimed', data);
     });
 
-    sse.addEventListener('listing:completed', (e) => {
+    sse.addEventListener('listing:completed', () => {
       beep(880, 'sine', 0.3);
-      loadListings().then(() => {
-        if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') renderNgoCards();
-        updateImpactStats();
-      });
+      handleListingSync('completed');
     });
 
     sse.addEventListener('listing:deleted', (e) => {
-      let deletedData = null;
-      try {
-        if (e.data) deletedData = JSON.parse(e.data);
-      } catch (err) {}
-
-      loadListings().then(() => {
-        if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') {
-          renderNgoCards();
-          if (deletedData && deletedData.id) {
-            removeNgoNotification(deletedData.id);
-          }
-        }
-      });
+      let data = null;
+      try { data = e.data ? JSON.parse(e.data) : null; } catch (_) {}
+      handleListingSync('deleted', data);
     });
   } catch (err) {
     console.warn('SSE stream error:', err);
@@ -156,18 +101,17 @@ async function updateImpactStats() {
     const json = await res.json();
     if (!json.success || !json.data) return;
 
-    const data = json.data;
-    const mealsEl = document.getElementById('donor-impact-meals');
-    const carbonEl = document.getElementById('donor-impact-carbon');
-    const licenseEl = document.getElementById('donor-impact-license');
-    const bannerDivertedEl = document.getElementById('donor-banner-diverted');
+    const { data } = json;
+    const mealsEl = $('donor-impact-meals');
+    const carbonEl = $('donor-impact-carbon');
+    const licenseEl = $('donor-impact-license');
+    const bannerDivertedEl = $('donor-banner-diverted');
 
-    const userStats = data.userStats;
-    if (userStats) {
-      if (mealsEl) mealsEl.textContent = `${userStats.meals} Meals`;
-      if (carbonEl) carbonEl.textContent = userStats.carbon;
-      if (licenseEl) licenseEl.textContent = userStats.license || 'FSSAI Active';
-      if (bannerDivertedEl) bannerDivertedEl.textContent = `${Math.round(userStats.meals * 0.45).toLocaleString()} kg`;
+    if (data.userStats) {
+      if (mealsEl) mealsEl.textContent = `${data.userStats.meals} Meals`;
+      if (carbonEl) carbonEl.textContent = data.userStats.carbon;
+      if (licenseEl) licenseEl.textContent = data.userStats.license || 'FSSAI Active';
+      if (bannerDivertedEl) bannerDivertedEl.textContent = `${Math.round(data.userStats.meals * 0.45).toLocaleString()} kg`;
     } else {
       if (mealsEl) mealsEl.textContent = `${data.divertedMeals.toLocaleString()} Meals`;
       if (carbonEl) carbonEl.textContent = `${data.carbonOffsetKg} kg CO₂e`;
@@ -178,7 +122,7 @@ async function updateImpactStats() {
   }
 }
 
-// Initial Fallback Profiles (for offline / file:// usage)
+// Offline / Local Fallback Datastores
 const fallbackUsers = {
   'chef.royalspice@gmail.com': {
     email: 'chef.royalspice@gmail.com',
@@ -217,7 +161,6 @@ const fallbackUsers = {
   }
 };
 
-// Initial Fallback Listings
 const fallbackListings = [
   { id: 1, title: '30 Servings Veg Thali', donor: 'Royal Spice Caterers', dist: '1.2 km', lat: 28.6139, lng: 77.2090, icon: '🍲', expires: '1h 20m', tag: '⚡ Urgent (<2h)', tagColor: 'amber', status: 'Driver En Route', claimed: true, extra: 'Driver: Mark R. • ETA 12m' },
   { id: 2, title: '15 Packed Rice Bowls', donor: 'Green Earth Bistro', dist: '0.8 km', lat: 28.6190, lng: 77.2130, icon: '🍱', expires: '2h 45m', tag: 'Fresh Pack', tagColor: 'emerald', status: 'Awaiting NGO Claim', claimed: false, extra: 'Listed 20m ago' },
@@ -229,7 +172,7 @@ const fallbackListings = [
 function beep(freq = 520, type = 'sine', duration = 0.15) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type;
@@ -240,7 +183,7 @@ function beep(freq = 520, type = 'sine', duration = 0.15) {
     gain.connect(audioCtx.destination);
     osc.start();
     osc.stop(audioCtx.currentTime + duration);
-  } catch (e) {}
+  } catch (_) {}
 }
 
 // 3. Google Authentication & Gmail OTP Handlers
@@ -251,22 +194,28 @@ let resendTimerInterval = null;
 function openGoogleAuthModal() {
   beep(480);
   backToEmailStep();
-  const modal = document.getElementById('google-auth-modal');
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
+  const modal = $('google-auth-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
 }
 
 function closeGoogleAuthModal() {
-  const modal = document.getElementById('google-auth-modal');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
+  const modal = $('google-auth-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
   if (resendTimerInterval) clearInterval(resendTimerInterval);
 }
 
 function backToEmailStep() {
-  document.getElementById('auth-step-email').classList.remove('hidden');
-  document.getElementById('auth-step-otp').classList.add('hidden');
-  const errorMsg = document.getElementById('otp-error-msg');
+  const emailStep = $('auth-step-email');
+  const otpStep = $('auth-step-otp');
+  const errorMsg = $('otp-error-msg');
+  if (emailStep) emailStep.classList.remove('hidden');
+  if (otpStep) otpStep.classList.add('hidden');
   if (errorMsg) errorMsg.classList.add('hidden');
   if (resendTimerInterval) clearInterval(resendTimerInterval);
 }
@@ -285,7 +234,7 @@ async function selectGoogleAccount(email, name, role) {
 
 async function handleCustomGoogleAuth(e) {
   e.preventDefault();
-  const email = document.getElementById('google-custom-email').value.trim();
+  const email = $('google-custom-email').value.trim();
   const role = document.querySelector('input[name="custom-role"]:checked').value;
   const name = email.split('@')[0].replace('.', ' ').toUpperCase();
 
@@ -310,11 +259,9 @@ async function requestGmailOtp(email) {
         body: JSON.stringify({ email })
       });
       const data = await res.json();
-      if (data.success && data.previewOtp) {
-        activeOtp = data.previewOtp;
-      }
+      if (data.success && data.previewOtp) activeOtp = data.previewOtp;
     } catch (err) {
-      console.warn('API send-otp error, using offline fallback code:', err);
+      console.warn('API send-otp error, using fallback code:', err);
     }
   }
 
@@ -322,29 +269,24 @@ async function requestGmailOtp(email) {
     activeOtp = Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  // Switch to OTP Step UI
-  document.getElementById('auth-step-email').classList.add('hidden');
-  document.getElementById('auth-step-otp').classList.remove('hidden');
-  document.getElementById('otp-target-email').textContent = email;
-  document.getElementById('otp-input').value = '';
-  document.getElementById('otp-error-msg').classList.add('hidden');
+  $('auth-step-email').classList.add('hidden');
+  $('auth-step-otp').classList.remove('hidden');
+  $('otp-target-email').textContent = email;
+  $('otp-input').value = '';
+  $('otp-error-msg').classList.add('hidden');
 
-  // Update Quick Fill helper
-  const quickFillText = document.getElementById('quick-fill-text');
+  const quickFillText = $('quick-fill-text');
   if (quickFillText) quickFillText.textContent = `Click to Auto-Fill Received OTP: ${activeOtp}`;
 
-  // Trigger simulated Gmail Toast
   showGmailToast(activeOtp, email);
-
-  // Start Resend Timer (30s)
   startResendTimer();
-  document.getElementById('otp-input').focus();
+  $('otp-input').focus();
   lucide.createIcons();
 }
 
 function showGmailToast(otp, email) {
-  const toast = document.getElementById('gmail-toast');
-  const toastCode = document.getElementById('toast-otp-code');
+  const toast = $('gmail-toast');
+  const toastCode = $('toast-otp-code');
   if (!toast || !toastCode) return;
 
   toastCode.textContent = otp;
@@ -352,12 +294,11 @@ function showGmailToast(otp, email) {
   toast.classList.add('flex');
   beep(880, 'sine', 0.2);
 
-  // Auto-dismiss after 15 seconds
   setTimeout(() => dismissGmailToast(), 15000);
 }
 
 function dismissGmailToast() {
-  const toast = document.getElementById('gmail-toast');
+  const toast = $('gmail-toast');
   if (toast) {
     toast.classList.add('hidden');
     toast.classList.remove('flex');
@@ -366,9 +307,9 @@ function dismissGmailToast() {
 
 function startResendTimer() {
   let seconds = 30;
-  const timerDisplay = document.getElementById('otp-timer-display');
-  const timerSeconds = document.getElementById('otp-timer-seconds');
-  const resendBtn = document.getElementById('btn-resend-otp');
+  const timerDisplay = $('otp-timer-display');
+  const timerSeconds = $('otp-timer-seconds');
+  const resendBtn = $('btn-resend-otp');
 
   if (resendTimerInterval) clearInterval(resendTimerInterval);
 
@@ -389,12 +330,11 @@ function startResendTimer() {
 }
 
 async function resendOtp() {
-  if (!pendingAuthUser) return;
-  await requestGmailOtp(pendingAuthUser.email);
+  if (pendingAuthUser) await requestGmailOtp(pendingAuthUser.email);
 }
 
 function quickFillOtp() {
-  const otpInput = document.getElementById('otp-input');
+  const otpInput = $('otp-input');
   if (otpInput && activeOtp) {
     otpInput.value = activeOtp;
     handleOtpSubmit(new Event('submit'));
@@ -402,11 +342,11 @@ function quickFillOtp() {
 }
 
 async function handleOtpSubmit(e) {
-  if (e && e.preventDefault) e.preventDefault();
+  if (e?.preventDefault) e.preventDefault();
   if (!pendingAuthUser) return;
 
-  const enteredOtp = document.getElementById('otp-input').value.trim();
-  const errorMsg = document.getElementById('otp-error-msg');
+  const enteredOtp = $('otp-input').value.trim();
+  const errorMsg = $('otp-error-msg');
 
   if (enteredOtp.length !== 6) {
     errorMsg.textContent = 'Please enter the full 6-digit code.';
@@ -433,7 +373,6 @@ async function handleOtpSubmit(e) {
       const data = await res.json();
       if (data.success) {
         if (data.isNewUser) {
-          // Detected brand new first-time login!
           dismissGmailToast();
           closeGoogleAuthModal();
           openSignUpFlow(data.email, data.suggestedRole || pendingAuthUser.role);
@@ -447,15 +386,13 @@ async function handleOtpSubmit(e) {
         return;
       }
     } catch (err) {
-      console.warn('API verify-otp error, verifying against local active OTP:', err);
+      console.warn('API verify-otp error, checking offline:', err);
     }
   }
 
-  // Local/Offline verification fallback
   if (!verifiedUser) {
     if (enteredOtp === activeOtp) {
       if (!fallbackUsers[pendingAuthUser.email]) {
-        // Brand new local user
         dismissGmailToast();
         closeGoogleAuthModal();
         openSignUpFlow(pendingAuthUser.email, pendingAuthUser.role);
@@ -470,7 +407,6 @@ async function handleOtpSubmit(e) {
     }
   }
 
-  // Verification successful!
   currentUserProfile = verifiedUser;
   currentRole = currentUserProfile.role;
   currentEmail = currentUserProfile.email;
@@ -509,7 +445,7 @@ function logout() {
 async function switchView(role, entityName = '', email = '') {
   currentRole = role;
   ['login', 'signup', 'donor', 'ngo'].forEach(v => {
-    const el = document.getElementById(`view-${v}`);
+    const el = $(`view-${v}`);
     if (el) {
       el.classList.toggle('hidden', v !== role);
       if (v === role && v !== 'login') el.classList.add('flex');
@@ -529,65 +465,48 @@ async function switchView(role, entityName = '', email = '') {
 
   // Hydrate Profile in Navigation & Badges
   if (currentUserProfile) {
-    if (role === 'donor') {
-      const bannerName = document.getElementById('donor-banner-name');
-      const profileName = document.getElementById('donor-profile-name');
-      const btnName = document.getElementById('donor-nav-btn-name');
-      const avatar = document.getElementById('donor-nav-avatar');
+    const prefix = role === 'donor' ? 'donor' : 'ngo';
+    const bannerName = $(`${prefix}-banner-name`);
+    const profileName = $(`${prefix}-profile-name`);
+    const btnName = $(`${prefix}-nav-btn-name`);
+    const avatar = $(`${prefix}-nav-avatar`);
 
-      if (bannerName) bannerName.textContent = currentUserProfile.name;
-      if (profileName) profileName.textContent = `${currentUserProfile.name} • Verified Kitchen`;
-      if (btnName) btnName.textContent = currentUserProfile.name.split(' ')[0] || 'Profile';
-      if (avatar && currentUserProfile.photo) avatar.src = currentUserProfile.photo;
-
-      renderDonorCards();
-      updateImpactStats();
-      setTimeout(initDonorMap, 200);
-    } else if (role === 'ngo') {
-      const bannerName = document.getElementById('ngo-banner-name');
-      const profileName = document.getElementById('ngo-profile-name');
-      const btnName = document.getElementById('ngo-nav-btn-name');
-      const avatar = document.getElementById('ngo-nav-avatar');
-
-      if (bannerName) bannerName.textContent = currentUserProfile.name;
-      if (profileName) {
+    if (bannerName) bannerName.textContent = currentUserProfile.name;
+    if (profileName) {
+      if (role === 'donor') {
+        profileName.textContent = `${currentUserProfile.name} • Verified Kitchen`;
+      } else {
         const darpanTag = currentUserProfile.regId ? ` • Darpan: ${currentUserProfile.regId.replace('NGO-DARPAN/', '')}` : '';
         profileName.textContent = `${currentUserProfile.name} • Verified Relief eNGO${darpanTag}`;
       }
-      if (btnName) btnName.textContent = currentUserProfile.name.split(' ')[0] || 'Profile';
-      if (avatar && currentUserProfile.photo) avatar.src = currentUserProfile.photo;
+    }
+    if (btnName) btnName.textContent = currentUserProfile.name.split(' ')[0] || 'Profile';
+    if (avatar && currentUserProfile.photo) avatar.src = currentUserProfile.photo;
+  }
 
-      renderNgoCards();
-      syncNgoNotificationsWithListings();
-      updateDesktopNotifButton();
-    }
-  } else {
-    // Role view without full profile cache (e.g. quick test or direct role entry)
-    if (role === 'donor') {
-      renderDonorCards();
-    } else if (role === 'ngo') {
-      renderNgoCards();
-      syncNgoNotificationsWithListings();
-      updateDesktopNotifButton();
-    }
+  if (role === 'donor') {
+    renderDonorCards();
+    updateImpactStats();
+    setTimeout(initDonorMap, 200);
+  } else if (role === 'ngo') {
+    renderNgoCards();
+    syncNgoNotificationsWithListings();
+    updateDesktopNotifButton();
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
   lucide.createIcons();
 }
 
-/* ==========================================================================
-   4b. First-Time Sign Up & Partner Onboarding Flow
-   ========================================================================== */
-
+// 4b. Sign Up & Partner Onboarding Flow
 function startDirectSignUp() {
   beep(520, 'sine', 0.15);
   openGoogleAuthModal();
-  const customEmailInput = document.getElementById('google-custom-email');
-  if (customEmailInput) {
+  const customEmail = $('google-custom-email');
+  if (customEmail) {
     setTimeout(() => {
-      customEmailInput.focus();
-      customEmailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      customEmail.focus();
+      customEmail.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 150);
   }
 }
@@ -598,7 +517,7 @@ function startNgoSignUp() {
 }
 
 function selectSampleNgoDarpan(id) {
-  const input = document.getElementById('signup-darpan');
+  const input = $('signup-darpan');
   if (input) {
     input.value = id;
     verifyNgoRegistration();
@@ -608,15 +527,15 @@ function selectSampleNgoDarpan(id) {
 let isNgoDarpanVerified = false;
 
 async function verifyNgoRegistration() {
-  const input = document.getElementById('signup-darpan');
+  const input = $('signup-darpan');
   if (!input) return;
   const regNo = input.value.trim();
 
-  const btn = document.getElementById('btn-verify-darpan');
-  const btnText = document.getElementById('btn-verify-text');
-  const resultBox = document.getElementById('ngo-verification-box');
-  const errorBox = document.getElementById('ngo-verification-error');
-  const badge = document.getElementById('ngo-auth-badge');
+  const btn = $('btn-verify-darpan');
+  const btnText = $('btn-verify-text');
+  const resultBox = $('ngo-verification-box');
+  const errorBox = $('ngo-verification-error');
+  const badge = $('ngo-auth-badge');
 
   if (!regNo) {
     if (errorBox) {
@@ -645,15 +564,19 @@ async function verifyNgoRegistration() {
     }
   }
 
-  // Client-side fallback
   if (!data) {
-    let clean = regNo.toUpperCase().replace(/^NGO-DARPAN\//, '').replace(/^DARPAN\//, '');
-    if (clean === 'DL/2019/0248819' || clean === 'MH/2021/0192847' || clean === 'KA/2020/0394819' || clean === 'WB/2018/0109283' || /^[A-Z]{2}\/\d{4}\/\d{5,8}$/.test(clean)) {
+    const clean = regNo.toUpperCase().replace(/^NGO-DARPAN\//, '').replace(/^DARPAN\//, '');
+    const sampleNames = {
+      'DL/2019/0248819': 'Hope Shelter Network Relief Foundation',
+      'MH/2021/0192847': 'Seva Annapurna Food Bank Trust',
+      'KA/2020/0394819': 'Karuna Relief Care Foundation'
+    };
+    if (sampleNames[clean] || /^[A-Z]{2}\/\d{4}\/\d{5,8}$/.test(clean)) {
       data = {
         success: true,
         verified: true,
         registrationNo: clean,
-        legalName: clean === 'DL/2019/0248819' ? 'Hope Shelter Network Relief Foundation' : (clean === 'MH/2021/0192847' ? 'Seva Annapurna Food Bank Trust' : 'Karuna Relief Care Foundation'),
+        legalName: sampleNames[clean] || 'Verified Community Relief Foundation',
         state: clean.startsWith('DL') ? 'Delhi (NCT)' : (clean.startsWith('MH') ? 'Maharashtra' : 'Karnataka'),
         act: 'Societies Registration Act XXI of 1860 / Indian Trusts Act',
         section80G: 'Active & Verified (80G(5)(vi) Compliant)',
@@ -680,27 +603,24 @@ async function verifyNgoRegistration() {
       badge.classList.add('flex');
     }
 
-    const darpanTag = document.getElementById('ngo-verified-darpan-tag');
-    const legalNameEl = document.getElementById('ngo-verified-legal-name');
-    const stateEl = document.getElementById('ngo-verified-state');
-    const actEl = document.getElementById('ngo-verified-act');
-    const g80El = document.getElementById('ngo-verified-80g');
+    const fields = {
+      'ngo-verified-darpan-tag': data.registrationNo,
+      'ngo-verified-legal-name': data.legalName,
+      'ngo-verified-state': data.state,
+      'ngo-verified-act': data.act,
+      'ngo-verified-80g': data.section80G
+    };
+    for (const [id, val] of Object.entries(fields)) {
+      const el = $(id);
+      if (el) el.textContent = val;
+    }
 
-    if (darpanTag) darpanTag.textContent = data.registrationNo;
-    if (legalNameEl) legalNameEl.textContent = data.legalName;
-    if (stateEl) stateEl.textContent = data.state;
-    if (actEl) actEl.textContent = data.act;
-    if (g80El) g80El.textContent = data.section80G;
-
-    // Auto-update Organization name & Signatory if blank or default
-    const nameInput = document.getElementById('signup-name');
+    const nameInput = $('signup-name');
     if (nameInput && (!nameInput.value || nameInput.value.includes('Food Works') || nameInput.value.includes('Relief Director'))) {
       nameInput.value = data.legalName;
     }
-    const signatoryInput = document.getElementById('signup-signatory');
-    if (signatoryInput && data.authorizedSignatory) {
-      signatoryInput.value = data.authorizedSignatory;
-    }
+    const signatoryInput = $('signup-signatory');
+    if (signatoryInput && data.authorizedSignatory) signatoryInput.value = data.authorizedSignatory;
 
     beep(880, 'sine', 0.25);
     lucide.createIcons();
@@ -718,94 +638,69 @@ async function verifyNgoRegistration() {
 
 function openSignUpFlow(email, role = 'donor') {
   const cleanEmail = (email || '').trim().toLowerCase();
-  
-  // Populate verified email in onboarding form
-  const emailInput = document.getElementById('signup-email');
+  const emailInput = $('signup-email');
   if (emailInput) emailInput.value = cleanEmail;
 
-  // Auto-suggest organization name from email if empty
-  const nameInput = document.getElementById('signup-name');
+  const nameInput = $('signup-name');
   if (nameInput) {
     const rawName = cleanEmail.split('@')[0] || '';
     const formatted = rawName.replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     nameInput.value = formatted ? `${formatted} Food Works` : '';
   }
 
-  // Pre-generate FSSAI / NGO Darpan demo license
   setSignUpRole(role || 'donor');
   generateDemoLicense(role === 'ngo' ? 'darpan' : 'fssai');
-
-  // Navigate to signup view
   switchView('signup');
   beep(659, 'sine', 0.2);
 }
 
 function setSignUpRole(role) {
   beep(480, 'sine', 0.1);
-  const roleInput = document.getElementById('signup-role');
+  const roleInput = $('signup-role');
   if (roleInput) roleInput.value = role;
 
-  const donorCard = document.getElementById('role-card-donor');
-  const ngoCard = document.getElementById('role-card-ngo');
-  const badgeDonor = document.getElementById('badge-donor');
-  const badgeNgo = document.getElementById('badge-ngo');
-  const donorCreds = document.getElementById('signup-donor-credentials');
-  const ngoCreds = document.getElementById('signup-ngo-credentials');
-  const categoryLabel = document.getElementById('signup-category-label');
-  const categorySelect = document.getElementById('signup-category');
+  const isDonor = role === 'donor';
+  const donorCard = $('role-card-donor');
+  const ngoCard = $('role-card-ngo');
 
-  if (role === 'donor') {
-    if (donorCard) {
-      donorCard.className = 'role-card active cursor-pointer p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 transition relative flex flex-col justify-between';
-    }
-    if (ngoCard) {
-      ngoCard.className = 'role-card cursor-pointer p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/30 transition relative flex flex-col justify-between';
-    }
-    if (badgeDonor) badgeDonor.classList.remove('hidden');
-    if (badgeNgo) badgeNgo.classList.add('hidden');
-    if (donorCreds) donorCreds.classList.remove('hidden');
-    if (ngoCreds) ngoCreds.classList.add('hidden');
+  if (donorCard) {
+    donorCard.className = `role-card ${isDonor ? 'active' : ''} cursor-pointer p-4 rounded-2xl border-2 ${isDonor ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-200 bg-white'} transition relative flex flex-col justify-between`;
+  }
+  if (ngoCard) {
+    ngoCard.className = `role-card ${!isDonor ? 'active' : ''} cursor-pointer p-4 rounded-2xl border-2 ${!isDonor ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 bg-white'} transition relative flex flex-col justify-between`;
+  }
 
-    if (categoryLabel) categoryLabel.textContent = 'Kitchen Facility Type *';
-    if (categorySelect) {
-      categorySelect.innerHTML = `
-        <option value="Banquets & Commercial Kitchen">Banquets & Commercial Kitchen</option>
-        <option value="Fine Dine & Restaurant">Fine Dine & Restaurant</option>
-        <option value="Artisan Bakery & Cafe">Artisan Bakery & Cafe</option>
-        <option value="Corporate Cafeteria">Corporate Cafeteria</option>
-        <option value="Cloud Kitchen Facility">Cloud Kitchen Facility</option>
-      `;
-    }
-  } else {
-    if (ngoCard) {
-      ngoCard.className = 'role-card active cursor-pointer p-4 rounded-2xl border-2 border-blue-500 bg-blue-50/50 hover:bg-blue-50 transition relative flex flex-col justify-between';
-    }
-    if (donorCard) {
-      donorCard.className = 'role-card cursor-pointer p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition relative flex flex-col justify-between';
-    }
-    if (badgeNgo) {
-      badgeNgo.classList.remove('hidden');
-      badgeNgo.className = 'text-[10px] font-extrabold uppercase bg-blue-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1';
-    }
-    if (badgeDonor) badgeDonor.classList.add('hidden');
-    if (ngoCreds) ngoCreds.classList.remove('hidden');
-    if (donorCreds) donorCreds.classList.add('hidden');
+  $('badge-donor')?.classList.toggle('hidden', !isDonor);
+  const badgeNgo = $('badge-ngo');
+  if (badgeNgo) {
+    badgeNgo.classList.toggle('hidden', isDonor);
+    if (!isDonor) badgeNgo.className = 'text-[10px] font-extrabold uppercase bg-blue-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1';
+  }
 
-    if (categoryLabel) categoryLabel.textContent = 'Relief Shelter Category *';
-    if (categorySelect) {
-      categorySelect.innerHTML = `
-        <option value="Community Relief & Food Shelter">Community Relief & Food Shelter</option>
-        <option value="Orphanage & Children Relief">Orphanage & Children Relief</option>
-        <option value="Elderly Care & Community Home">Elderly Care & Community Home</option>
-        <option value="Disaster Relief Foundation">Disaster Relief Foundation</option>
-        <option value="Mobile Community Hunger Drive">Mobile Community Hunger Drive</option>
-      `;
-    }
+  $('signup-donor-credentials')?.classList.toggle('hidden', !isDonor);
+  $('signup-ngo-credentials')?.classList.toggle('hidden', isDonor);
 
-    const darpanInput = document.getElementById('signup-darpan');
-    if (darpanInput && !darpanInput.value) {
-      darpanInput.value = 'DL/2019/0248819';
-    }
+  const categoryLabel = $('signup-category-label');
+  const categorySelect = $('signup-category');
+  if (categoryLabel) categoryLabel.textContent = isDonor ? 'Kitchen Facility Type *' : 'Relief Shelter Category *';
+
+  if (categorySelect) {
+    categorySelect.innerHTML = isDonor
+      ? `<option value="Banquets & Commercial Kitchen">Banquets & Commercial Kitchen</option>
+         <option value="Fine Dine & Restaurant">Fine Dine & Restaurant</option>
+         <option value="Artisan Bakery & Cafe">Artisan Bakery & Cafe</option>
+         <option value="Corporate Cafeteria">Corporate Cafeteria</option>
+         <option value="Cloud Kitchen Facility">Cloud Kitchen Facility</option>`
+      : `<option value="Community Relief & Food Shelter">Community Relief & Food Shelter</option>
+         <option value="Orphanage & Children Relief">Orphanage & Children Relief</option>
+         <option value="Elderly Care & Community Home">Elderly Care & Community Home</option>
+         <option value="Disaster Relief Foundation">Disaster Relief Foundation</option>
+         <option value="Mobile Community Hunger Drive">Mobile Community Hunger Drive</option>`;
+  }
+
+  if (!isDonor) {
+    const darpanInput = $('signup-darpan');
+    if (darpanInput && !darpanInput.value) darpanInput.value = 'DL/2019/0248819';
     setTimeout(() => verifyNgoRegistration(), 120);
   }
 
@@ -814,21 +709,16 @@ function setSignUpRole(role) {
 
 function generateDemoLicense(type) {
   beep(740, 'sine', 0.1);
-  if (type === 'fssai') {
-    const input = document.getElementById('signup-fssai');
-    if (input) {
-      input.value = 'FSSAI-' + Math.floor(10000000000000 + Math.random() * 90000000000000);
-    }
-  } else {
-    const input = document.getElementById('signup-darpan');
-    if (input) {
-      input.value = 'NGO-DARPAN/DL/' + new Date().getFullYear() + '/' + Math.floor(100000 + Math.random() * 900000);
-    }
+  const input = $(type === 'fssai' ? 'signup-fssai' : 'signup-darpan');
+  if (input) {
+    input.value = type === 'fssai'
+      ? 'FSSAI-' + Math.floor(10000000000000 + Math.random() * 90000000000000)
+      : 'NGO-DARPAN/DL/' + new Date().getFullYear() + '/' + Math.floor(100000 + Math.random() * 900000);
   }
 }
 
 function initSignUpMap(lat = 28.6139, lng = 77.2090) {
-  const container = document.getElementById('signup-map');
+  const container = $('signup-map');
   if (!container || typeof L === 'undefined') return;
 
   if (signUpMap) {
@@ -844,82 +734,78 @@ function initSignUpMap(lat = 28.6139, lng = 77.2090) {
 
   const pinIcon = L.divIcon({
     className: 'custom-gps-pin',
-    html: `<div style="background: #2b5e43; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 4px 14px rgba(0,0,0,0.3); border: 2.5px solid white;">📍</div>`,
+    html: `<div style="background:#2b5e43;color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,0.3);border:2.5px solid white;">📍</div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 16]
   });
 
   signUpMarker = L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(signUpMap);
 
-  signUpMarker.on('dragend', (e) => {
-    const pos = e.target.getLatLng();
-    setSignUpCoords(pos.lat, pos.lng);
-  });
-
+  const updatePos = (coords) => setSignUpCoords(coords.lat, coords.lng);
+  signUpMarker.on('dragend', (e) => updatePos(e.target.getLatLng()));
   signUpMap.on('click', (e) => {
     signUpMarker.setLatLng(e.latlng);
-    setSignUpCoords(e.latlng.lat, e.latlng.lng);
+    updatePos(e.latlng);
   });
 
-  setTimeout(() => {
-    if (signUpMap) signUpMap.invalidateSize();
-  }, 300);
+  setTimeout(() => { if (signUpMap) signUpMap.invalidateSize(); }, 300);
 }
 
 function setSignUpCoords(lat, lng) {
-  const latEl = document.getElementById('signup-lat');
-  const lngEl = document.getElementById('signup-lng');
-  const display = document.getElementById('signup-coords-display');
-  if (latEl) latEl.value = Number(lat).toFixed(4);
-  if (lngEl) lngEl.value = Number(lng).toFixed(4);
-  if (display) display.textContent = `${Number(lat).toFixed(4)}° N, ${Number(lng).toFixed(4)}° E`;
+  const latEl = $('signup-lat');
+  const lngEl = $('signup-lng');
+  const display = $('signup-coords-display');
+  const numLat = Number(lat).toFixed(4);
+  const numLng = Number(lng).toFixed(4);
+  if (latEl) latEl.value = numLat;
+  if (lngEl) lngEl.value = numLng;
+  if (display) display.textContent = `${numLat}° N, ${numLng}° E`;
 }
 
 function detectSignUpGps() {
   beep(600, 'sine', 0.15);
-  const display = document.getElementById('signup-coords-display');
+  const display = $('signup-coords-display');
   if (display) display.textContent = 'Detecting GPS station...';
 
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setSignUpCoords(lat, lng);
-        if (signUpMap && signUpMarker) {
-          signUpMap.setView([lat, lng], 15);
-          signUpMarker.setLatLng([lat, lng]);
-        }
-        beep(880, 'sine', 0.2);
-      },
-      (err) => {
-        console.warn('Geolocation failed or denied, using simulated accurate station:', err);
-        const lat = 28.6139 + (Math.random() - 0.5) * 0.015;
-        const lng = 77.2090 + (Math.random() - 0.5) * 0.015;
-        setSignUpCoords(lat, lng);
-        if (signUpMap && signUpMarker) {
-          signUpMap.setView([lat, lng], 15);
-          signUpMarker.setLatLng([lat, lng]);
-        }
-      },
-      { enableHighAccuracy: true, timeout: 6000 }
-    );
-  } else {
+  if (!navigator.geolocation) {
     alert('Geolocation not supported by your browser.');
+    return;
   }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      setSignUpCoords(lat, lng);
+      if (signUpMap && signUpMarker) {
+        signUpMap.setView([lat, lng], 15);
+        signUpMarker.setLatLng([lat, lng]);
+      }
+      beep(880, 'sine', 0.2);
+    },
+    () => {
+      const lat = 28.6139 + (Math.random() - 0.5) * 0.015;
+      const lng = 77.2090 + (Math.random() - 0.5) * 0.015;
+      setSignUpCoords(lat, lng);
+      if (signUpMap && signUpMarker) {
+        signUpMap.setView([lat, lng], 15);
+        signUpMarker.setLatLng([lat, lng]);
+      }
+    },
+    { enableHighAccuracy: true, timeout: 6000 }
+  );
 }
 
 async function handleSignUpSubmit(e) {
-  if (e && e.preventDefault) e.preventDefault();
+  if (e?.preventDefault) e.preventDefault();
 
-  const role = document.getElementById('signup-role').value || 'donor';
-  const email = (document.getElementById('signup-email').value || '').trim().toLowerCase();
-  const name = document.getElementById('signup-name').value.trim();
-  const phone = document.getElementById('signup-phone').value.trim();
-  const category = document.getElementById('signup-category').value;
-  const address = document.getElementById('signup-address').value.trim();
-  const lat = parseFloat(document.getElementById('signup-lat').value) || (role === 'ngo' ? 28.6250 : 28.6139);
-  const lng = parseFloat(document.getElementById('signup-lng').value) || (role === 'ngo' ? 77.2180 : 77.2090);
+  const role = $('signup-role').value || 'donor';
+  const email = ($('signup-email').value || '').trim().toLowerCase();
+  const name = $('signup-name').value.trim();
+  const phone = $('signup-phone').value.trim();
+  const category = $('signup-category').value;
+  const address = $('signup-address').value.trim();
+  const lat = parseFloat($('signup-lat').value) || (role === 'ngo' ? 28.6250 : 28.6139);
+  const lng = parseFloat($('signup-lng').value) || (role === 'ngo' ? 77.2180 : 77.2090);
 
   if (!email || !name) {
     alert('Please enter your organization name and verified email.');
@@ -940,25 +826,17 @@ async function handleSignUpSubmit(e) {
 
   if (role === 'donor') {
     payload.kitchenType = category;
-    payload.licenseId = (document.getElementById('signup-fssai').value || '').trim() || ('FSSAI-' + Math.floor(10000000000000 + Math.random() * 90000000000000));
-    payload.operatingHours = (document.getElementById('signup-hours').value || '').trim() || '10:00 AM - 11:30 PM';
+    payload.licenseId = ($('signup-fssai').value || '').trim() || ('FSSAI-' + Math.floor(10000000000000 + Math.random() * 90000000000000));
+    payload.operatingHours = ($('signup-hours').value || '').trim() || '10:00 AM - 11:30 PM';
     payload.mealsDiverted = 0;
     payload.carbonOffset = '0 kg CO₂e';
   } else {
-    const rawDarpan = (document.getElementById('signup-darpan').value || '').trim().toUpperCase();
-    const signatoryVal = (document.getElementById('signup-signatory').value || '').trim();
-    const panVal = (document.getElementById('signup-pan').value || '').trim().toUpperCase();
-
     payload.shelterType = category;
-    payload.regId = rawDarpan.startsWith('NGO-DARPAN/') ? rawDarpan : `NGO-DARPAN/${rawDarpan}`;
-    payload.darpanId = rawDarpan;
-    payload.authorizedSignatory = signatoryVal || 'Dr. Alok Verma (General Secretary)';
-    payload.panNumber = panVal || 'AAATH2819E';
-    payload.capacity = (document.getElementById('signup-capacity').value || '').trim() || '350 Meals / Day';
-    payload.fleet = (document.getElementById('signup-fleet').value || '').trim() || '4 Delivery Vans, 2 Bikes';
-    payload.section80G = 'Active & Verified (80G(5)(vi))';
-    payload.verifiedDarpan = true;
-    payload.regAuthority = 'NITI Aayog & Registrar of Societies';
+    payload.regId = ($('signup-darpan').value || '').trim().toUpperCase() || 'NGO-DARPAN/DL/2019/0248819';
+    payload.signatory = ($('signup-signatory').value || '').trim() || 'General Secretary';
+    payload.capacity = '400 Meals / Day';
+    payload.fleet = '3 Vans, 2 Bikes';
+    payload.section80G = 'Active & Verified';
     payload.mealsServed = 0;
   }
 
@@ -971,29 +849,18 @@ async function handleSignUpSubmit(e) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const json = await res.json();
-      if (json.success && json.data) {
-        registeredUser = json.data;
-      } else {
-        alert(json.error || 'Failed to complete registration. Please try again.');
-        return;
-      }
+      const data = await res.json();
+      if (data.success) registeredUser = data.data;
     } catch (err) {
       console.warn('API register error, saving to local state:', err);
     }
   }
 
   if (!registeredUser) {
-    registeredUser = {
-      ...payload,
-      id: 'usr_' + Date.now(),
-      verified: true,
-      createdAt: new Date().toISOString()
-    };
+    registeredUser = { ...payload, id: 'usr_' + Date.now(), verified: true, createdAt: new Date().toISOString() };
     fallbackUsers[email] = registeredUser;
   }
 
-  // Set authenticated session
   currentUserProfile = registeredUser;
   currentRole = currentUserProfile.role;
   currentEmail = currentUserProfile.email;
@@ -1001,7 +868,6 @@ async function handleSignUpSubmit(e) {
   if (currentUserProfile.lat) donorLat = currentUserProfile.lat;
   if (currentUserProfile.lng) donorLng = currentUserProfile.lng;
 
-  // Sound + Confetti Celebration
   beep(880, 'sine', 0.3);
   confetti({
     particleCount: 75,
@@ -1010,56 +876,21 @@ async function handleSignUpSubmit(e) {
     colors: currentRole === 'donor' ? ['#2b5e43', '#4d8966', '#d68936'] : ['#2c5870', '#5b8ba8', '#d68936']
   });
 
-  // Switch to new dashboard
   await switchView(currentRole, currentEntity, currentEmail);
 }
 
-/* ==========================================================================
-   4c. NGO Real-Time Surplus Food Notification & Alert System
-   ========================================================================== */
-
+// 4c. NGO Real-Time Surplus Food Notification & Alert System
 function playFoodAlertChime() {
   if (!ngoSoundEnabled) return;
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
-    }
-    
-    // Melodic two-tone chime (F5 -> A5)
-    const now = audioCtx.currentTime;
-    
-    const osc1 = audioCtx.createOscillator();
-    const gain1 = audioCtx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(698.46, now);
-    gain1.gain.setValueAtTime(0.2, now);
-    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-    osc1.connect(gain1);
-    gain1.connect(audioCtx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.35);
-
-    const osc2 = audioCtx.createOscillator();
-    const gain2 = audioCtx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(880.00, now + 0.15);
-    gain2.gain.setValueAtTime(0.28, now + 0.15);
-    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
-    osc2.connect(gain2);
-    gain2.connect(audioCtx.destination);
-    osc2.start(now + 0.15);
-    osc2.stop(now + 0.55);
-  } catch (e) {
-    console.warn('Audio chime error:', e);
-  }
+  beep(698.46, 'sine', 0.35);
+  setTimeout(() => beep(880.00, 'sine', 0.4), 140);
 }
 
 function toggleNgoSound() {
   ngoSoundEnabled = !ngoSoundEnabled;
-  const icon = document.getElementById('sound-toggle-icon');
-  const text = document.getElementById('sound-toggle-text');
-  const btn = document.getElementById('btn-sound-toggle');
+  const icon = $('sound-toggle-icon');
+  const text = $('sound-toggle-text');
+  const btn = $('btn-sound-toggle');
 
   if (icon) {
     icon.setAttribute('data-lucide', ngoSoundEnabled ? 'volume-2' : 'volume-x');
@@ -1076,47 +907,39 @@ function toggleNgoSound() {
   lucide.createIcons();
 }
 
-// LocalStorage Persistence for Notifications
-function saveNgoNotifications() {
+// Helper to save and update all notification UI elements in one call
+function refreshNgoNotificationUI() {
   try {
     localStorage.setItem(NGO_NOTIFS_KEY, JSON.stringify(ngoNotifications));
-  } catch (e) {
-    console.warn('Failed to save notifications:', e);
-  }
+  } catch (_) {}
+  updateNgoBellBadge();
+  renderNgoNotificationsList();
 }
 
 function loadNgoNotifications() {
   try {
     const raw = localStorage.getItem(NGO_NOTIFS_KEY);
-    if (raw) {
-      ngoNotifications = JSON.parse(raw);
-    }
-  } catch (e) {
-    console.warn('Failed to load notifications:', e);
+    ngoNotifications = raw ? JSON.parse(raw) : [];
+  } catch (_) {
     ngoNotifications = [];
   }
 }
 
-// Synchronize Notifications with Live Listings Pool
 function syncNgoNotificationsWithListings() {
   loadNgoNotifications();
 
   if (listings && listings.length > 0) {
     const listingsMap = new Map(listings.map(item => [item.id, item]));
 
-    // 1. Sync claimed status for existing notification items
+    // 1. Sync claimed status
     ngoNotifications.forEach(n => {
       const match = listingsMap.get(n.id);
-      if (match && match.claimed) {
-        n.claimed = true;
-      }
+      if (match && match.claimed) n.claimed = true;
     });
 
-    // 2. Populate notifications for available surplus food if not already present
+    // 2. Populate unclaimed listings
     const existingIds = new Set(ngoNotifications.map(n => n.id));
-    const unclaimed = listings.filter(l => !l.claimed);
-
-    unclaimed.forEach(item => {
+    listings.filter(l => !l.claimed).forEach(item => {
       if (!existingIds.has(item.id)) {
         ngoNotifications.unshift({
           ...item,
@@ -1128,11 +951,8 @@ function syncNgoNotificationsWithListings() {
     });
   }
 
-  // Cap list to latest 20 alerts
   ngoNotifications = ngoNotifications.slice(0, 20);
-  saveNgoNotifications();
-  updateNgoBellBadge();
-  renderNgoNotificationsList();
+  refreshNgoNotificationUI();
 }
 
 function markNgoNotificationClaimed(id) {
@@ -1143,21 +963,14 @@ function markNgoNotificationClaimed(id) {
       changed = true;
     }
   });
-  if (changed) {
-    saveNgoNotifications();
-    updateNgoBellBadge();
-    renderNgoNotificationsList();
-  }
+  if (changed) refreshNgoNotificationUI();
 }
 
 function removeNgoNotification(id) {
   ngoNotifications = ngoNotifications.filter(n => n.id !== id);
-  saveNgoNotifications();
-  updateNgoBellBadge();
-  renderNgoNotificationsList();
+  refreshNgoNotificationUI();
 }
 
-// Browser Desktop Notification Permission & Controls
 async function requestDesktopNotificationPermission() {
   if (typeof window.Notification === 'undefined') {
     alert('Desktop notifications are not supported in this browser.');
@@ -1185,24 +998,17 @@ async function requestDesktopNotificationPermission() {
 }
 
 function updateDesktopNotifButton() {
-  const btn = document.getElementById('btn-desktop-notif-toggle');
-  if (!btn) return;
-  if (typeof window.Notification === 'undefined') {
-    btn.classList.add('hidden');
-    return;
-  }
-  if (Notification.permission === 'granted') {
-    btn.innerHTML = `<i data-lucide="bell-check" class="w-3 h-3 text-emerald-600"></i><span class="text-emerald-700 font-bold">Alerts Enabled</span>`;
-  } else {
-    btn.innerHTML = `<i data-lucide="bell" class="w-3 h-3 text-blue-600"></i><span class="text-blue-700 font-bold">Enable Browser Alerts</span>`;
-  }
+  const btn = $('btn-desktop-notif-toggle');
+  if (!btn || typeof window.Notification === 'undefined') return;
+
+  const isGranted = Notification.permission === 'granted';
+  btn.innerHTML = `<i data-lucide="${isGranted ? 'bell-check' : 'bell'}" class="w-3 h-3 text-${isGranted ? 'emerald' : 'blue'}-600"></i><span class="text-${isGranted ? 'emerald' : 'blue'}-700 font-bold">${isGranted ? 'Alerts Enabled' : 'Enable Browser Alerts'}</span>`;
   lucide.createIcons();
 }
 
 function showNgoFoodAlert(listing) {
   if (!listing) return;
 
-  // Add to notifications list
   const alertItem = {
     ...listing,
     alertId: 'alert_' + Date.now() + Math.random().toString(36).substr(2, 4),
@@ -1211,15 +1017,10 @@ function showNgoFoodAlert(listing) {
     claimed: Boolean(listing.claimed)
   };
 
-  // Avoid duplicates in active alert notifications
   ngoNotifications = [alertItem, ...ngoNotifications.filter(n => n.id !== listing.id)].slice(0, 20);
-  saveNgoNotifications();
+  refreshNgoNotificationUI();
 
-  // Update notification badge count & dropdown list
-  updateNgoBellBadge();
-  renderNgoNotificationsList();
-
-  // Browser Desktop Notification if enabled
+  // Desktop notification
   if (typeof window.Notification !== 'undefined' && Notification.permission === 'granted' && !listing.claimed) {
     try {
       const deskNotif = new Notification(`🍲 Surplus Food: ${listing.title}`, {
@@ -1232,38 +1033,32 @@ function showNgoFoodAlert(listing) {
         showNgoFoodAlert(listing);
         deskNotif.close();
       };
-    } catch (e) {
-      console.warn('Desktop notification error:', e);
-    }
+    } catch (_) {}
   }
 
   // Hydrate Floating Alert Toast
-  const toast = document.getElementById('ngo-surplus-toast');
-  const toastMedia = document.getElementById('ngo-toast-media');
-  const toastTitle = document.getElementById('ngo-toast-title');
-  const toastDonor = document.getElementById('ngo-toast-donor');
-  const toastDist = document.getElementById('ngo-toast-dist');
-  const toastExpires = document.getElementById('ngo-toast-expires');
-  const claimBtn = document.getElementById('ngo-toast-claim-btn');
-  const mapBtn = document.getElementById('ngo-toast-map-btn');
-
+  const toast = $('ngo-surplus-toast');
   if (toast) {
-    if (toastTitle) toastTitle.textContent = listing.title || 'Surplus Meals Ready';
-    if (toastDonor) toastDonor.textContent = listing.donor || 'Verified Kitchen';
-    if (toastDist) toastDist.textContent = listing.dist ? `${listing.dist} away` : 'Nearby Station';
-    if (toastExpires) toastExpires.textContent = listing.expires ? `Expires in ${listing.expires}` : 'Immediate Pickup';
+    const titleEl = $('ngo-toast-title');
+    const donorEl = $('ngo-toast-donor');
+    const distEl = $('ngo-toast-dist');
+    const expiresEl = $('ngo-toast-expires');
+    const mediaEl = $('ngo-toast-media');
+    const claimBtn = $('ngo-toast-claim-btn');
+    const mapBtn = $('ngo-toast-map-btn');
 
-    if (toastMedia) {
-      if (listing.image) {
-        toastMedia.innerHTML = `<img src="${listing.image}" alt="${listing.title}" class="w-full h-full object-cover">`;
-      } else {
-        toastMedia.textContent = listing.icon || '🍲';
-      }
+    if (titleEl) titleEl.textContent = listing.title || 'Surplus Meals Ready';
+    if (donorEl) donorEl.textContent = listing.donor || 'Verified Kitchen';
+    if (distEl) distEl.textContent = listing.dist ? `${listing.dist} away` : 'Nearby Station';
+    if (expiresEl) expiresEl.textContent = listing.expires ? `Expires in ${listing.expires}` : 'Immediate Pickup';
+
+    if (mediaEl) {
+      mediaEl.innerHTML = listing.image
+        ? `<img src="${listing.image}" alt="${listing.title}" class="w-full h-full object-cover">`
+        : (listing.icon || '🍲');
     }
 
-    if (claimBtn) {
-      claimBtn.onclick = () => claimFoodFromAlert(listing.id);
-    }
+    if (claimBtn) claimBtn.onclick = () => claimFoodFromAlert(listing.id);
     if (mapBtn) {
       mapBtn.onclick = () => {
         dismissNgoAlertToast();
@@ -1271,10 +1066,7 @@ function showNgoFoodAlert(listing) {
       };
     }
 
-    // Play pleasant two-tone chime
     playFoodAlertChime();
-
-    // Show toast with spring-like appearance
     toast.classList.remove('hidden');
     toast.classList.add('flex');
 
@@ -1286,7 +1078,7 @@ function showNgoFoodAlert(listing) {
 }
 
 function dismissNgoAlertToast() {
-  const toast = document.getElementById('ngo-surplus-toast');
+  const toast = $('ngo-surplus-toast');
   if (toast) {
     toast.classList.add('hidden');
     toast.classList.remove('flex');
@@ -1300,17 +1092,14 @@ async function claimFoodFromAlert(listingId) {
 }
 
 function toggleNgoNotificationsDropdown() {
-  const dropdown = document.getElementById('ngo-notifications-dropdown');
+  const dropdown = $('ngo-notifications-dropdown');
   if (!dropdown) return;
 
   const isHidden = dropdown.classList.contains('hidden');
   if (isHidden) {
     dropdown.classList.remove('hidden');
-    // Mark notifications as read
     ngoNotifications.forEach(n => n.read = true);
-    saveNgoNotifications();
-    updateNgoBellBadge();
-    renderNgoNotificationsList();
+    refreshNgoNotificationUI();
     beep(500, 'sine', 0.08);
   } else {
     dropdown.classList.add('hidden');
@@ -1319,7 +1108,7 @@ function toggleNgoNotificationsDropdown() {
 }
 
 function updateNgoBellBadge() {
-  const badge = document.getElementById('ngo-bell-count');
+  const badge = $('ngo-bell-count');
   if (!badge) return;
 
   const unreadCount = ngoNotifications.filter(n => !n.read && !n.claimed).length;
@@ -1334,7 +1123,7 @@ function updateNgoBellBadge() {
 }
 
 function renderNgoNotificationsList() {
-  const container = document.getElementById('ngo-notifications-list');
+  const container = $('ngo-notifications-list');
   if (!container) return;
 
   const activeAlerts = ngoNotifications.filter(n => !n.claimed);
@@ -1363,18 +1152,9 @@ function renderNgoNotificationsList() {
         </div>
         <p class="text-[11px] text-slate-500 truncate">${item.donor} • Expires in ${item.expires || '2h'}</p>
         <div class="mt-1.5 flex items-center gap-1.5">
-          <button 
-            onclick="claimFoodFromAlert(${item.id})" 
-            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] py-1 px-2 rounded-md shadow-xs transition"
-          >
-            Claim Pickup
-          </button>
-          <button 
-            onclick="openGpsRouteModal(${item.id})" 
-            class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] py-1 px-2 rounded-md font-semibold transition flex items-center gap-0.5"
-          >
-            <i data-lucide="navigation" class="w-2.5 h-2.5"></i>
-            <span>Route</span>
+          <button onclick="claimFoodFromAlert(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] py-1 px-2 rounded-md shadow-xs transition">Claim Pickup</button>
+          <button onclick="openGpsRouteModal(${item.id})" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] py-1 px-2 rounded-md font-semibold transition flex items-center gap-0.5">
+            <i data-lucide="navigation" class="w-2.5 h-2.5"></i><span>Route</span>
           </button>
         </div>
       </div>
@@ -1386,14 +1166,11 @@ function renderNgoNotificationsList() {
 
 function clearNgoNotifications() {
   ngoNotifications = [];
-  saveNgoNotifications();
-  updateNgoBellBadge();
-  renderNgoNotificationsList();
+  refreshNgoNotificationUI();
   beep(400, 'sine', 0.1);
 }
 
 function simulateFoodAlert() {
-  // Grab first available listing or generate fresh demo item
   let sampleListing = listings.find(i => !i.claimed);
   if (!sampleListing) {
     sampleListing = {
@@ -1417,15 +1194,12 @@ function simulateFoodAlert() {
   }
 
   showNgoFoodAlert(sampleListing);
-
-  if (gridChannel) {
-    gridChannel.postMessage({ type: 'listing:created', payload: sampleListing });
-  }
+  if (gridChannel) gridChannel.postMessage({ type: 'listing:created', payload: sampleListing });
 }
 
 // 5. Donor GPS Station & Interactive Maps
 function initDonorMap() {
-  const mapContainer = document.getElementById('donor-map');
+  const mapContainer = $('donor-map');
   if (!mapContainer || typeof L === 'undefined') return;
 
   if (!donorMap) {
@@ -1435,7 +1209,6 @@ function initDonorMap() {
       attribution: '© OpenStreetMap'
     }).addTo(donorMap);
 
-    // Custom Kitchen Pin Marker
     donorMarker = L.circleMarker([donorLat, donorLng], {
       radius: 8,
       fillColor: '#10B981',
@@ -1446,7 +1219,6 @@ function initDonorMap() {
     }).addTo(donorMap);
     donorMarker.bindPopup(`<b>${currentEntity || 'Kitchen Donor'}</b><br>Surplus Station`).openPopup();
 
-    // 5 km Broadcast Radius Ring
     donorCircle = L.circle([donorLat, donorLng], {
       radius: 5000,
       color: '#10B981',
@@ -1467,15 +1239,15 @@ function initDonorMap() {
 
 function updateGpsDisplays() {
   const coordsStr = `${donorLat.toFixed(4)}° N, ${donorLng.toFixed(4)}° E`;
-  const coordsEl = document.getElementById('donor-gps-coords');
-  const modalGpsEl = document.getElementById('modal-gps-display');
-  const gmapsLink = document.getElementById('donor-gmaps-link');
-  const addrEl = document.getElementById('donor-gps-addr');
+  const coordsEl = $('donor-gps-coords');
+  const modalGpsEl = $('modal-gps-display');
+  const gmapsLink = $('donor-gmaps-link');
+  const addrEl = $('donor-gps-addr');
 
   if (coordsEl) coordsEl.textContent = coordsStr;
   if (modalGpsEl) modalGpsEl.textContent = coordsStr;
   if (gmapsLink) gmapsLink.href = `https://maps.google.com/?q=${donorLat},${donorLng}`;
-  if (addrEl && currentUserProfile && currentUserProfile.address) {
+  if (addrEl && currentUserProfile?.address) {
     addrEl.textContent = currentUserProfile.address;
     addrEl.title = currentUserProfile.address;
   }
@@ -1483,7 +1255,7 @@ function updateGpsDisplays() {
 
 function detectDonorGps(forModal = false) {
   beep(480);
-  const statusBadge = document.getElementById('donor-gps-status');
+  const statusBadge = $('donor-gps-status');
   if (statusBadge) {
     statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-spin"></span> Acquiring GPS...`;
   }
@@ -1506,7 +1278,6 @@ function detectDonorGps(forModal = false) {
           if (donorCircle) donorCircle.setLatLng([donorLat, donorLng]);
         }
 
-        // Save updated coordinates to user profile
         if (currentUserProfile) {
           currentUserProfile.lat = donorLat;
           currentUserProfile.lng = donorLng;
@@ -1517,7 +1288,7 @@ function detectDonorGps(forModal = false) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: currentUserProfile.email, lat: donorLat, lng: donorLng })
               });
-            } catch (e) {}
+            } catch (_) {}
           }
         }
 
@@ -1525,10 +1296,8 @@ function detectDonorGps(forModal = false) {
         confetti({ particleCount: 25, spread: 45 });
       },
       (err) => {
-        console.warn('Geolocation warning/denied, using calibrated GPS station:', err);
-        if (statusBadge) {
-          statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> GPS Calibrated`;
-        }
+        console.warn('Geolocation denied/fallback:', err);
+        if (statusBadge) statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> GPS Calibrated`;
         updateGpsDisplays();
       },
       { timeout: 8000, enableHighAccuracy: true }
@@ -1549,20 +1318,18 @@ function openGpsRouteModal(listingId) {
   const ngoLat = 28.6250;
   const ngoLng = 77.2180;
 
-  // Hydrate text fields
-  document.getElementById('route-modal-title').textContent = `${item.title} • Route`;
-  document.getElementById('route-modal-subtitle').textContent = `Pickup from: ${item.donor || 'Verified Donor'}`;
-  document.getElementById('route-coords').textContent = `${targetLat.toFixed(4)}° N, ${targetLng.toFixed(4)}° E`;
-  document.getElementById('route-address').textContent = item.gpsAddress || item.donor || 'Kitchen Location';
-  document.getElementById('route-distance').textContent = item.dist || '1.4 km';
-  document.getElementById('route-gmaps-btn').href = `https://www.google.com/maps/dir/?api=1&origin=${ngoLat},${ngoLng}&destination=${targetLat},${targetLng}`;
+  $('route-modal-title').textContent = `${item.title} • Route`;
+  $('route-modal-subtitle').textContent = `Pickup from: ${item.donor || 'Verified Donor'}`;
+  $('route-coords').textContent = `${targetLat.toFixed(4)}° N, ${targetLng.toFixed(4)}° E`;
+  $('route-address').textContent = item.gpsAddress || item.donor || 'Kitchen Location';
+  $('route-distance').textContent = item.dist || '1.4 km';
+  $('route-gmaps-btn').href = `https://www.google.com/maps/dir/?api=1&origin=${ngoLat},${ngoLng}&destination=${targetLat},${targetLng}`;
 
-  const modal = document.getElementById('gps-route-modal');
+  const modal = $('gps-route-modal');
   modal.classList.remove('hidden');
   modal.classList.add('flex');
   lucide.createIcons();
 
-  // Initialize or re-center Route Map
   setTimeout(() => {
     if (typeof L === 'undefined') return;
 
@@ -1580,7 +1347,6 @@ function openGpsRouteModal(listingId) {
       }
     });
 
-    // NGO Shelter Pin (Blue)
     const ngoMarker = L.circleMarker([ngoLat, ngoLng], {
       radius: 9,
       fillColor: '#2563EB',
@@ -1589,7 +1355,6 @@ function openGpsRouteModal(listingId) {
       fillOpacity: 0.95
     }).addTo(routeMap).bindPopup(`<b>Hope Shelter Hub</b><br>Dispatch Center`);
 
-    // Donor Kitchen Pin (Green)
     const donorPin = L.circleMarker([targetLat, targetLng], {
       radius: 9,
       fillColor: '#10B981',
@@ -1598,7 +1363,6 @@ function openGpsRouteModal(listingId) {
       fillOpacity: 0.95
     }).addTo(routeMap).bindPopup(`<b>${item.donor}</b><br>${item.title}`).openPopup();
 
-    // Turn-by-Turn Simulated Polyline Route
     const routeLine = L.polyline([
       [ngoLat, ngoLng],
       [(ngoLat + targetLat) / 2 + 0.002, (ngoLng + targetLng) / 2 - 0.001],
@@ -1616,9 +1380,11 @@ function openGpsRouteModal(listingId) {
 }
 
 function closeGpsRouteModal() {
-  const modal = document.getElementById('gps-route-modal');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
+  const modal = $('gps-route-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 }
 
 // 7. Profile Management Modal
@@ -1626,38 +1392,27 @@ function openProfileModal() {
   if (!currentUserProfile) return;
   beep(450);
 
-  const modal = document.getElementById('profile-modal');
-  const avatar = document.getElementById('profile-modal-avatar');
-  const nameEl = document.getElementById('profile-modal-name');
-  const emailEl = document.getElementById('profile-modal-email');
-  const roleBadge = document.getElementById('profile-modal-role-badge');
-  const typeLabel = document.getElementById('profile-type-label');
-  const licenseLabel = document.getElementById('profile-license-label');
-  const extraFields = document.getElementById('profile-extra-fields');
+  const modal = $('profile-modal');
+  $('profile-modal-avatar').src = currentUserProfile.photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUserProfile.email)}`;
+  $('profile-modal-name').textContent = currentUserProfile.name;
+  $('profile-modal-email').textContent = currentUserProfile.email;
 
-  avatar.src = currentUserProfile.photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUserProfile.email)}`;
-  nameEl.textContent = currentUserProfile.name;
-  emailEl.textContent = currentUserProfile.email;
+  const isDonor = currentUserProfile.role === 'donor';
+  const roleBadge = $('profile-modal-role-badge');
+  const typeLabel = $('profile-type-label');
+  const licenseLabel = $('profile-license-label');
+  const extraFields = $('profile-extra-fields');
 
-  if (currentUserProfile.role === 'donor') {
+  if (isDonor) {
     roleBadge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
     roleBadge.textContent = 'Food Donor';
     typeLabel.textContent = 'Kitchen / Food Category';
     licenseLabel.textContent = 'FSSAI Food License ID';
 
     extraFields.innerHTML = `
-      <div class="flex justify-between py-1 border-b border-slate-200">
-        <span class="text-slate-500">Operating Hours:</span>
-        <strong class="text-slate-800">${currentUserProfile.operatingHours || '10:00 AM - 11:30 PM'}</strong>
-      </div>
-      <div class="flex justify-between py-1 border-b border-slate-200">
-        <span class="text-slate-500">GPS Station Lock:</span>
-        <strong class="font-mono text-emerald-700 font-bold">${donorLat.toFixed(4)}° N, ${donorLng.toFixed(4)}° E</strong>
-      </div>
-      <div class="flex justify-between py-1">
-        <span class="text-slate-500">Surplus Diverted:</span>
-        <strong class="text-emerald-700">${currentUserProfile.mealsDiverted || 620} Meals (${currentUserProfile.carbonOffset || '355.8 kg CO₂e'})</strong>
-      </div>
+      <div class="flex justify-between py-1 border-b border-slate-200"><span class="text-slate-500">Operating Hours:</span><strong class="text-slate-800">${currentUserProfile.operatingHours || '10:00 AM - 11:30 PM'}</strong></div>
+      <div class="flex justify-between py-1 border-b border-slate-200"><span class="text-slate-500">GPS Station Lock:</span><strong class="font-mono text-emerald-700 font-bold">${donorLat.toFixed(4)}° N, ${donorLng.toFixed(4)}° E</strong></div>
+      <div class="flex justify-between py-1"><span class="text-slate-500">Surplus Diverted:</span><strong class="text-emerald-700">${currentUserProfile.mealsDiverted || 620} Meals (${currentUserProfile.carbonOffset || '355.8 kg CO₂e'})</strong></div>
     `;
   } else {
     roleBadge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-800';
@@ -1666,28 +1421,18 @@ function openProfileModal() {
     licenseLabel.textContent = 'NGO Darpan / Registration ID';
 
     extraFields.innerHTML = `
-      <div class="flex justify-between py-1 border-b border-slate-200">
-        <span class="text-slate-500">Daily Feeding Capacity:</span>
-        <strong class="text-slate-800">${currentUserProfile.capacity || '350 Meals / Day'}</strong>
-      </div>
-      <div class="flex justify-between py-1 border-b border-slate-200">
-        <span class="text-slate-500">Delivery Fleet:</span>
-        <strong class="text-slate-800">${currentUserProfile.fleet || '4 Delivery Vans'}</strong>
-      </div>
-      <div class="flex justify-between py-1">
-        <span class="text-slate-500">80G Exemption Status:</span>
-        <strong class="text-emerald-700">${currentUserProfile.section80G || 'Verified Active'}</strong>
-      </div>
+      <div class="flex justify-between py-1 border-b border-slate-200"><span class="text-slate-500">Daily Feeding Capacity:</span><strong class="text-slate-800">${currentUserProfile.capacity || '350 Meals / Day'}</strong></div>
+      <div class="flex justify-between py-1 border-b border-slate-200"><span class="text-slate-500">Delivery Fleet:</span><strong class="text-slate-800">${currentUserProfile.fleet || '4 Delivery Vans'}</strong></div>
+      <div class="flex justify-between py-1"><span class="text-slate-500">80G Exemption Status:</span><strong class="text-emerald-700">${currentUserProfile.section80G || 'Verified Active'}</strong></div>
     `;
   }
 
-  document.getElementById('profile-input-name').value = currentUserProfile.name || '';
-  document.getElementById('profile-input-phone').value = currentUserProfile.phone || '';
-  document.getElementById('profile-input-type').value = (currentUserProfile.role === 'donor' ? currentUserProfile.kitchenType : currentUserProfile.shelterType) || '';
-  document.getElementById('profile-input-license').value = (currentUserProfile.role === 'donor' ? currentUserProfile.licenseId : currentUserProfile.regId) || '';
-  document.getElementById('profile-input-address').value = currentUserProfile.address || '';
-
-  document.getElementById('profile-status-msg').classList.add('hidden');
+  $('profile-input-name').value = currentUserProfile.name || '';
+  $('profile-input-phone').value = currentUserProfile.phone || '';
+  $('profile-input-type').value = (isDonor ? currentUserProfile.kitchenType : currentUserProfile.shelterType) || '';
+  $('profile-input-license').value = (isDonor ? currentUserProfile.licenseId : currentUserProfile.regId) || '';
+  $('profile-input-address').value = currentUserProfile.address || '';
+  $('profile-status-msg').classList.add('hidden');
 
   modal.classList.remove('hidden');
   modal.classList.add('flex');
@@ -1695,30 +1440,33 @@ function openProfileModal() {
 }
 
 function closeProfileModal() {
-  const modal = document.getElementById('profile-modal');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
+  const modal = $('profile-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 }
 
 async function saveProfileChanges(e) {
   e.preventDefault();
   if (!currentUserProfile) return;
 
+  const isDonor = currentUserProfile.role === 'donor';
   const updatedData = {
     email: currentUserProfile.email,
-    name: document.getElementById('profile-input-name').value.trim(),
-    phone: document.getElementById('profile-input-phone').value.trim(),
-    address: document.getElementById('profile-input-address').value.trim(),
+    name: $('profile-input-name').value.trim(),
+    phone: $('profile-input-phone').value.trim(),
+    address: $('profile-input-address').value.trim(),
     lat: donorLat,
     lng: donorLng
   };
 
-  if (currentUserProfile.role === 'donor') {
-    updatedData.kitchenType = document.getElementById('profile-input-type').value.trim();
-    updatedData.licenseId = document.getElementById('profile-input-license').value.trim();
+  if (isDonor) {
+    updatedData.kitchenType = $('profile-input-type').value.trim();
+    updatedData.licenseId = $('profile-input-license').value.trim();
   } else {
-    updatedData.shelterType = document.getElementById('profile-input-type').value.trim();
-    updatedData.regId = document.getElementById('profile-input-license').value.trim();
+    updatedData.shelterType = $('profile-input-type').value.trim();
+    updatedData.regId = $('profile-input-license').value.trim();
   }
 
   if (API_BASE) {
@@ -1729,11 +1477,9 @@ async function saveProfileChanges(e) {
         body: JSON.stringify(updatedData)
       });
       const data = await res.json();
-      if (data.success) {
-        currentUserProfile = data.data;
-      }
+      if (data.success) currentUserProfile = data.data;
     } catch (err) {
-      console.warn('API error saving profile, updating locally:', err);
+      console.warn('API profile update error, saving locally:', err);
     }
   }
 
@@ -1743,9 +1489,11 @@ async function saveProfileChanges(e) {
   await switchView(currentUserProfile.role, currentUserProfile.name, currentUserProfile.email);
 
   beep(600);
-  const statusMsg = document.getElementById('profile-status-msg');
-  statusMsg.classList.remove('hidden');
-  setTimeout(() => statusMsg.classList.add('hidden'), 3000);
+  const statusMsg = $('profile-status-msg');
+  if (statusMsg) {
+    statusMsg.classList.remove('hidden');
+    setTimeout(() => statusMsg.classList.add('hidden'), 3000);
+  }
 }
 
 // 8. Listings Data & Renderers
@@ -1769,7 +1517,7 @@ async function loadListings(query = '') {
         return listings;
       }
     } catch (err) {
-      console.warn('Backend API unavailable, using local memory cache:', err);
+      console.warn('Backend API unavailable, using cached listings:', err);
     }
   }
 
@@ -1782,116 +1530,97 @@ async function loadListings(query = '') {
 }
 
 function renderDonorCards() {
-  const activeContainer = document.getElementById('donor-listings-container');
-  const claimedContainer = document.getElementById('donor-claimed-container');
+  const activeContainer = $('donor-listings-container');
+  const claimedContainer = $('donor-claimed-container');
   if (!activeContainer && !claimedContainer) return;
 
   const availableListings = listings.filter(item => !item.claimed);
   const claimedListings = listings.filter(item => item.claimed);
 
-  const activeBadge = document.getElementById('donor-listing-badge');
+  const activeBadge = $('donor-listing-badge');
   if (activeBadge) activeBadge.textContent = `${availableListings.length} Available`;
-
-  const claimedBadge = document.getElementById('donor-claimed-badge');
+  const claimedBadge = $('donor-claimed-badge');
   if (claimedBadge) claimedBadge.textContent = `${claimedListings.length} Claimed`;
 
-  // 1. Render Available Surplus Listings
   if (activeContainer) {
-    if (availableListings.length === 0) {
-      activeContainer.innerHTML = `
-        <div class="col-span-full p-6 text-center rounded-2xl bg-white/80 border border-slate-200 shadow-xs">
-          <i data-lucide="package-open" class="w-8 h-8 mx-auto mb-2 text-emerald-400"></i>
-          <p class="text-xs font-bold text-slate-700">No active surplus waiting for claim</p>
-          <p class="text-[11px] text-slate-400 mt-0.5">Click "+ List Surplus Food" to broadcast excess meals to nearby shelters.</p>
-        </div>
-      `;
-    } else {
-      activeContainer.innerHTML = availableListings.map(item => `
-        <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-emerald-500 flex flex-col justify-between hover:shadow-md transition">
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">${item.tag || 'Available'}</span>
-              <span class="text-xs font-semibold text-emerald-700">Awaiting NGO Claim</span>
-            </div>
-            <div class="flex items-start gap-3 mb-1">
-              ${item.image 
-                ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
-                : `<div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">${item.icon || '🍲'}</div>`
-              }
-              <div class="min-w-0 flex-1">
-                <h4 class="font-bold text-slate-900 text-base leading-tight">${item.title}</h4>
-                <div class="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
-                  <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
-                  <span>Expires: ${item.expires}</span>
-                  <span class="text-slate-300">•</span>
-                  <span class="text-emerald-700 font-mono text-[11px] font-semibold">📍 GPS</span>
+    activeContainer.innerHTML = availableListings.length === 0
+      ? `<div class="col-span-full p-6 text-center rounded-2xl bg-white/80 border border-slate-200 shadow-xs">
+           <i data-lucide="package-open" class="w-8 h-8 mx-auto mb-2 text-emerald-400"></i>
+           <p class="text-xs font-bold text-slate-700">No active surplus waiting for claim</p>
+           <p class="text-[11px] text-slate-400 mt-0.5">Click "+ List Surplus Food" to broadcast excess meals to nearby shelters.</p>
+         </div>`
+      : availableListings.map(item => `
+          <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-emerald-500 flex flex-col justify-between hover:shadow-md transition">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">${item.tag || 'Available'}</span>
+                <span class="text-xs font-semibold text-emerald-700">Awaiting NGO Claim</span>
+              </div>
+              <div class="flex items-start gap-3 mb-1">
+                ${item.image ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` : `<div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">${item.icon || '🍲'}</div>`}
+                <div class="min-w-0 flex-1">
+                  <h4 class="font-bold text-slate-900 text-base leading-tight">${item.title}</h4>
+                  <div class="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+                    <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <span>Expires: ${item.expires}</span>
+                    <span class="text-slate-300">•</span>
+                    <span class="text-emerald-700 font-mono text-[11px] font-semibold">📍 GPS</span>
+                  </div>
                 </div>
               </div>
             </div>
+            <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 text-xs text-slate-500">
+              <span class="text-emerald-700 font-medium">● Ready for Pickup</span>
+              <button onclick="removeDonorListing(${item.id})" class="text-xs text-red-500 hover:text-red-700 font-semibold transition">Cancel Listing</button>
+            </div>
           </div>
-          <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 text-xs text-slate-500">
-            <span class="text-emerald-700 font-medium">● Ready for Pickup</span>
-            <button onclick="removeDonorListing(${item.id})" class="text-xs text-red-500 hover:text-red-700 font-semibold transition">Cancel Listing</button>
-          </div>
-        </div>
-      `).join('');
-    }
+        `).join('');
   }
 
-  // 2. Render Claimed Food by NGOs
   if (claimedContainer) {
-    if (claimedListings.length === 0) {
-      claimedContainer.innerHTML = `
-        <div class="col-span-full p-6 text-center rounded-2xl bg-white/80 border border-slate-200 shadow-xs">
-          <i data-lucide="truck" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-          <p class="text-xs font-bold text-slate-700">No items currently claimed</p>
-          <p class="text-[11px] text-slate-400 mt-0.5">When an NGO claims your surplus food, it will automatically move here with live dispatch status.</p>
-        </div>
-      `;
-    } else {
-      claimedContainer.innerHTML = claimedListings.map(item => `
-        <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-blue-500 flex flex-col justify-between bg-blue-50/20 hover:shadow-md transition">
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 px-2 py-0.5 rounded flex items-center gap-1">
-                <i data-lucide="check-circle-2" class="w-3 h-3 text-blue-600"></i> Claimed
-              </span>
-              <span class="text-xs font-bold text-blue-700">${item.status || 'Driver Dispatched'}</span>
-            </div>
-            <div class="flex items-start gap-3 mb-1">
-              ${item.image 
-                ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
-                : `<div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">${item.icon || '🍲'}</div>`
-              }
-              <div class="min-w-0 flex-1">
-                <h4 class="font-bold text-slate-900 text-base leading-tight">${item.title}</h4>
-                <p class="text-xs text-slate-600 mt-0.5 font-medium flex items-center gap-1">
-                  <i data-lucide="heart-handshake" class="w-3.5 h-3.5 text-blue-500 shrink-0"></i>
-                  <span>Claimed by: <strong class="text-slate-900">${item.claimedBy || 'Verified NGO'}</strong></span>
-                </p>
+    claimedContainer.innerHTML = claimedListings.length === 0
+      ? `<div class="col-span-full p-6 text-center rounded-2xl bg-white/80 border border-slate-200 shadow-xs">
+           <i data-lucide="truck" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+           <p class="text-xs font-bold text-slate-700">No items currently claimed</p>
+           <p class="text-[11px] text-slate-400 mt-0.5">When an NGO claims your surplus food, it will automatically move here with live dispatch status.</p>
+         </div>`
+      : claimedListings.map(item => `
+          <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-blue-500 flex flex-col justify-between bg-blue-50/20 hover:shadow-md transition">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3 h-3 text-blue-600"></i> Claimed</span>
+                <span class="text-xs font-bold text-blue-700">${item.status || 'Driver Dispatched'}</span>
+              </div>
+              <div class="flex items-start gap-3 mb-1">
+                ${item.image ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` : `<div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">${item.icon || '🍲'}</div>`}
+                <div class="min-w-0 flex-1">
+                  <h4 class="font-bold text-slate-900 text-base leading-tight">${item.title}</h4>
+                  <p class="text-xs text-slate-600 mt-0.5 font-medium flex items-center gap-1">
+                    <i data-lucide="heart-handshake" class="w-3.5 h-3.5 text-blue-500 shrink-0"></i>
+                    <span>Claimed by: <strong class="text-slate-900">${item.claimedBy || 'Verified NGO'}</strong></span>
+                  </p>
+                </div>
               </div>
             </div>
+            <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/80 text-xs">
+              <span class="text-blue-900 font-semibold flex items-center gap-1">
+                <i data-lucide="navigation" class="w-3 h-3 text-blue-600"></i>
+                <span>${item.extra || 'Driver En Route • ETA ~15m'}</span>
+              </span>
+              ${item.status === 'Delivered & Distributed'
+                ? `<span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Completed</span>`
+                : `<button onclick="confirmHandover(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs transition flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Confirm Handover</button>`
+              }
+            </div>
           </div>
-          <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/80 text-xs">
-            <span class="text-blue-900 font-semibold flex items-center gap-1">
-              <i data-lucide="navigation" class="w-3 h-3 text-blue-600"></i>
-              <span>${item.extra || 'Driver En Route • ETA ~15m'}</span>
-            </span>
-            ${item.status === 'Delivered & Distributed'
-              ? `<span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Completed</span>`
-              : `<button onclick="confirmHandover(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs transition flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Confirm Handover</button>`
-            }
-          </div>
-        </div>
-      `).join('');
-    }
+        `).join('');
   }
 
   lucide.createIcons();
 }
 
 async function renderNgoCards(query = '') {
-  const container = document.getElementById('ngo-cards-container');
+  const container = $('ngo-cards-container');
   if (!container) return;
 
   const items = await loadListings(query);
@@ -1899,16 +1628,12 @@ async function renderNgoCards(query = '') {
   container.innerHTML = items.map(item => `
     <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-${item.tagColor || 'blue'}-500 flex flex-col justify-between">
       <div class="flex items-start gap-3 mb-3">
-        ${item.image 
-          ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
-          : `<div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl shrink-0">${item.icon || '🍲'}</div>`
-        }
+        ${item.image ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` : `<div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl shrink-0">${item.icon || '🍲'}</div>`}
         <div class="min-w-0 flex-1">
           <div class="flex items-center justify-between gap-1">
             <span class="text-[10px] font-bold uppercase bg-${item.tagColor || 'blue'}-100 text-${item.tagColor || 'blue'}-800 px-2 py-0.5 rounded truncate">${item.tag || 'Surplus'}</span>
             <button onclick="openGpsRouteModal(${item.id})" class="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-0.5 rounded-md transition" title="View GPS Route on Map">
-              <i data-lucide="navigation" class="w-3 h-3 text-blue-500"></i>
-              <span>GPS Route</span>
+              <i data-lucide="navigation" class="w-3 h-3 text-blue-500"></i><span>GPS Route</span>
             </button>
           </div>
           <h4 class="font-bold text-slate-900 text-sm sm:text-base mt-1 truncate">${item.title}</h4>
@@ -1930,51 +1655,52 @@ async function renderNgoCards(query = '') {
   lucide.createIcons();
 }
 
-// 9. Surplus Donation Modal & Actions with Custom Time Selection
+// 9. Surplus Donation Modal & Timing Options
 let currentTimeMode = 'preset';
 
 function setTimeMode(mode) {
   currentTimeMode = mode;
   beep(480);
 
-  const btnPreset = document.getElementById('btn-mode-preset');
-  const btnDuration = document.getElementById('btn-mode-duration');
-  const btnSpecific = document.getElementById('btn-mode-specific');
+  const btnPreset = $('btn-mode-preset');
+  const btnDuration = $('btn-mode-duration');
+  const btnSpecific = $('btn-mode-specific');
+  const buttons = [btnPreset, btnDuration, btnSpecific];
 
-  const activeClasses = ['bg-white', 'text-emerald-700', 'shadow-xs', 'font-bold'];
-  const inactiveClasses = ['text-slate-600', 'font-normal'];
-
-  [btnPreset, btnDuration, btnSpecific].forEach(btn => {
-    btn.classList.remove(...activeClasses);
-    btn.classList.add(...inactiveClasses);
+  buttons.forEach(btn => {
+    if (!btn) return;
+    btn.classList.remove('bg-white', 'text-emerald-700', 'shadow-xs', 'font-bold');
+    btn.classList.add('text-slate-600', 'font-normal');
   });
 
   const activeBtn = mode === 'preset' ? btnPreset : (mode === 'duration' ? btnDuration : btnSpecific);
-  activeBtn.classList.remove(...inactiveClasses);
-  activeBtn.classList.add(...activeClasses);
+  if (activeBtn) {
+    activeBtn.classList.remove('text-slate-600', 'font-normal');
+    activeBtn.classList.add('bg-white', 'text-emerald-700', 'shadow-xs', 'font-bold');
+  }
 
-  document.getElementById('time-preset-container').classList.toggle('hidden', mode !== 'preset');
-  document.getElementById('time-duration-container').classList.toggle('hidden', mode !== 'duration');
-  document.getElementById('time-specific-container').classList.toggle('hidden', mode !== 'specific');
+  $('time-preset-container')?.classList.toggle('hidden', mode !== 'preset');
+  $('time-duration-container')?.classList.toggle('hidden', mode !== 'duration');
+  $('time-specific-container')?.classList.toggle('hidden', mode !== 'specific');
 }
 
 function getSelectedExpiryTime() {
   if (currentTimeMode === 'duration') {
-    const hours = parseInt(document.getElementById('custom-duration-hours').value || '0', 10);
-    const mins = parseInt(document.getElementById('custom-duration-mins').value || '0', 10);
+    const hours = parseInt($('custom-duration-hours').value || '0', 10);
+    const mins = parseInt($('custom-duration-mins').value || '0', 10);
     if (hours === 0 && mins === 0) return '1h 00m';
     if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
     if (hours > 0) return `${hours} Hour${hours > 1 ? 's' : ''}`;
     return `${mins} Mins`;
   } else if (currentTimeMode === 'specific') {
-    const timeVal = document.getElementById('custom-exact-time').value;
+    const timeVal = $('custom-exact-time').value;
     if (!timeVal) return 'By Tonight';
     const [h, m] = timeVal.split(':').map(Number);
     const period = h >= 12 ? 'PM' : 'AM';
     const formattedHour = h % 12 || 12;
     return `Until ${formattedHour}:${m < 10 ? '0' + m : m} ${period}`;
   }
-  return document.getElementById('food-expiry-input').value;
+  return $('food-expiry-input').value;
 }
 
 // 9.1 Food Photo Capture & Preset Handlers
@@ -1991,7 +1717,7 @@ function handlePhotoUpload(e) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = (evt) => {
     selectedFoodPhoto = evt.target.result;
     showPhotoPreview(selectedFoodPhoto);
     beep(520);
@@ -2008,10 +1734,9 @@ function selectPresetPhoto(type) {
 }
 
 function showPhotoPreview(url) {
-  const previewBox = document.getElementById('photo-preview-container');
-  const previewImg = document.getElementById('food-photo-preview');
-  const uploadZone = document.getElementById('photo-upload-zone');
-
+  const previewBox = $('photo-preview-container');
+  const previewImg = $('food-photo-preview');
+  const uploadZone = $('photo-upload-zone');
   if (previewBox && previewImg) {
     previewImg.src = url;
     previewBox.classList.remove('hidden');
@@ -2021,12 +1746,9 @@ function showPhotoPreview(url) {
 
 function removeSelectedPhoto() {
   selectedFoodPhoto = '';
-  const previewBox = document.getElementById('photo-preview-container');
-  const uploadZone = document.getElementById('photo-upload-zone');
-  const fileInput = document.getElementById('food-photo-input');
-
-  if (previewBox) previewBox.classList.add('hidden');
-  if (uploadZone) uploadZone.classList.remove('hidden');
+  $('photo-preview-container')?.classList.add('hidden');
+  $('photo-upload-zone')?.classList.remove('hidden');
+  const fileInput = $('food-photo-input');
   if (fileInput) fileInput.value = '';
   beep(300, 'triangle');
 }
@@ -2038,25 +1760,28 @@ function openDonationModal() {
   now.setHours(now.getHours() + 3);
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
-  const timeInput = document.getElementById('custom-exact-time');
+  const timeInput = $('custom-exact-time');
   if (timeInput) timeInput.value = `${hh}:${mm}`;
 
   updateGpsDisplays();
-
-  const modal = document.getElementById('donation-modal');
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
+  const modal = $('donation-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
 }
 
 function closeDonationModal() {
-  const modal = document.getElementById('donation-modal');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
+  const modal = $('donation-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 }
 
 async function handleNewFoodSubmit(e) {
   e.preventDefault();
-  const title = document.getElementById('food-title-input').value;
+  const title = $('food-title-input').value;
   const expiry = getSelectedExpiryTime();
 
   const newPayload = {
@@ -2085,7 +1810,7 @@ async function handleNewFoodSubmit(e) {
         await loadListings();
       }
     } catch (err) {
-      console.warn('API error, saving locally:', err);
+      console.warn('API listing error, saving locally:', err);
     }
   }
 
@@ -2111,14 +1836,11 @@ async function handleNewFoodSubmit(e) {
     listings.unshift(createdItem);
   }
 
-  // Cross-tab real-time alert dispatch
-  if (gridChannel) {
-    gridChannel.postMessage({ type: 'listing:created', payload: createdItem });
-  }
+  if (gridChannel) gridChannel.postMessage({ type: 'listing:created', payload: createdItem });
 
   renderDonorCards();
   closeDonationModal();
-  document.getElementById('add-food-form').reset();
+  $('add-food-form').reset();
   removeSelectedPhoto();
   beep(587);
   confetti({ particleCount: 30, spread: 50 });
@@ -2134,9 +1856,7 @@ async function removeDonorListing(id) {
   }
   listings = listings.filter(i => i.id !== id);
   removeNgoNotification(id);
-  if (gridChannel) {
-    gridChannel.postMessage({ type: 'listing:deleted', payload: { id } });
-  }
+  if (gridChannel) gridChannel.postMessage({ type: 'listing:deleted', payload: { id } });
   renderDonorCards();
   beep(280, 'triangle');
 }
@@ -2150,24 +1870,17 @@ async function claimFood(id) {
         body: JSON.stringify({ ngo: currentEntity || 'Hope Shelter Network' })
       });
       const result = await res.json();
-      if (result.success) {
-        await loadListings();
-      }
+      if (result.success) await loadListings();
     } catch (err) {
       console.warn('API claim error:', err);
     }
   }
 
-  // Mark in local listings pool
   const item = listings.find(i => i.id === id);
   if (item) item.claimed = true;
-
-  // Mark in notification feed
   markNgoNotificationClaimed(id);
 
-  if (gridChannel) {
-    gridChannel.postMessage({ type: 'listing:claimed', payload: { id, ngo: currentEntity } });
-  }
+  if (gridChannel) gridChannel.postMessage({ type: 'listing:claimed', payload: { id, ngo: currentEntity } });
 
   renderNgoCards();
   beep(660);
@@ -2189,11 +1902,10 @@ async function confirmHandover(id) {
         return;
       }
     } catch (e) {
-      console.warn('API error completing handover:', e);
+      console.warn('API handover error:', e);
     }
   }
 
-  // Local fallback
   const item = listings.find(l => l.id === id);
   if (item) {
     item.status = 'Delivered & Distributed';
@@ -2213,24 +1925,21 @@ function openTaxReceiptAlert() {
   }
 }
 
-// 10. Event Listeners & Audio Autoplay Unlocking
+// 10. Global Event Listeners & Audio Autoplay Unlocking
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeDonationModal();
     closeGoogleAuthModal();
     closeProfileModal();
     closeGpsRouteModal();
-    const dropdown = document.getElementById('ngo-notifications-dropdown');
+    const dropdown = $('ngo-notifications-dropdown');
     if (dropdown) dropdown.classList.add('hidden');
   }
 });
 
-// Unlock browser Web Audio context on first user interaction gesture
 const unlockAudioOnInteraction = () => {
   if (!audioCtx) {
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) {}
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
   }
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {});
@@ -2239,10 +1948,9 @@ const unlockAudioOnInteraction = () => {
 document.addEventListener('click', unlockAudioOnInteraction, { passive: true });
 document.addEventListener('keydown', unlockAudioOnInteraction, { passive: true });
 
-// Close NGO notifications dropdown when clicking outside
 document.addEventListener('click', (e) => {
-  const dropdown = document.getElementById('ngo-notifications-dropdown');
-  const bellBtn = document.getElementById('ngo-bell-btn');
+  const dropdown = $('ngo-notifications-dropdown');
+  const bellBtn = $('ngo-bell-btn');
   if (dropdown && !dropdown.classList.contains('hidden')) {
     if (!dropdown.contains(e.target) && (!bellBtn || !bellBtn.contains(e.target))) {
       dropdown.classList.add('hidden');
@@ -2250,7 +1958,7 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Background resilience polling for eNGO (every 20s)
+// Periodic background polling fallback for eNGO (every 20s)
 setInterval(() => {
   if (currentRole === 'ngo') {
     loadListings().then(() => {
