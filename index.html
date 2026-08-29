@@ -54,8 +54,8 @@
           Connect surplus food donors directly with verified local NGOs, shelters, and relief kitchens.
         </p>
 
-        <!-- Prominent Google Sign-in Button -->
-        <div class="mt-6 flex flex-col items-center justify-center">
+        <!-- Prominent Google Sign-in Button & Direct Sign-Up -->
+        <div class="mt-6 flex flex-col items-center justify-center gap-2.5">
           <button 
             onclick="openGoogleAuthModal()"
             class="flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 font-bold px-6 py-3.5 rounded-2xl shadow-sm hover:shadow-md transition active:scale-95 text-sm sm:text-base group"
@@ -70,7 +70,17 @@
             <span>Continue with Google / Gmail</span>
             <i data-lucide="arrow-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform"></i>
           </button>
-          <span class="text-xs text-slate-400 mt-2.5">or choose a demo portal below</span>
+
+          <!-- Sign Up Callout -->
+          <div class="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+            <span>First time onboarding your kitchen or shelter?</span>
+            <button onclick="startDirectSignUp()" class="font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1">
+              <span>Sign Up Here</span>
+              <i data-lucide="sparkles" class="w-3 h-3 text-amber-500"></i>
+            </button>
+          </div>
+
+          <span class="text-xs text-slate-400 mt-0.5">or choose a demo portal below</span>
         </div>
       </div>
 
@@ -103,7 +113,7 @@
           </div>
         </div>
 
-        <!-- NGO Partner Card -->
+        <!-- NGO & Shelter Card -->
         <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-soft hover:shadow-xl hover:border-blue-400 transition-all flex flex-col justify-between border-t-8 border-t-blue-500 relative group">
           <div>
             <div class="flex items-center justify-between mb-4">
@@ -120,12 +130,16 @@
               <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-blue-600"></i>1-Click reservation & route assignment</li>
             </ul>
           </div>
-          <div class="pt-4 border-t border-slate-100">
+          <div class="pt-4 border-t border-slate-100 flex flex-col gap-2">
             <button onclick="loginAs('ngo', 'Hope Shelter Network', 'contact.hopeshelter@gmail.com')" class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
               <i data-lucide="heart-handshake" class="w-4 h-4"></i>
-              <span>Enter as NGO Partner</span>
+              <span>Enter as Demo NGO Partner</span>
             </button>
-            <p class="text-[11px] text-center text-slate-400 mt-2">Account: contact.hopeshelter@gmail.com</p>
+            <button onclick="startNgoSignUp()" class="w-full flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-900 font-bold py-2 px-3 rounded-xl transition text-xs">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-600"></i>
+              <span>Register as Verified eNGO</span>
+            </button>
+            <p class="text-[11px] text-center text-slate-400">Account: contact.hopeshelter@gmail.com</p>
           </div>
         </div>
 
@@ -135,6 +149,425 @@
     <footer class="max-w-5xl mx-auto w-full text-center text-xs text-slate-400 pt-4 border-t border-slate-200">
       <span>Ann Zero-Waste Alliance • Surplus Food Redistribution Platform</span>
     </footer>
+  </section>
+
+
+  <!-- ==================== VIEW 1B: ONBOARDING & SIGN UP (FIRST TIME LOGINS) ==================== -->
+  <section id="view-signup" class="hidden min-h-screen flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
+    
+    <!-- Top Branding & Back Navigation -->
+    <header class="max-w-3xl mx-auto w-full flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="logo.png" alt="Ann Logo" class="w-12 h-12 object-contain drop-shadow">
+        <div>
+          <span class="text-2xl font-extrabold text-slate-900">Ann<span class="text-emerald-600">.</span></span>
+          <p class="text-xs text-slate-500 font-medium">Zero Food Waste Redistribution Network</p>
+        </div>
+      </div>
+      <button onclick="switchView('login')" class="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white/80 border border-slate-200 hover:border-slate-300 px-3.5 py-2 rounded-xl transition shadow-xs">
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+        <span>Back to Login</span>
+      </button>
+    </header>
+
+    <!-- Sign Up Form Card Container -->
+    <div class="max-w-3xl mx-auto w-full my-6">
+      <div class="glass-card rounded-3xl p-6 sm:p-9 shadow-soft border border-slate-200">
+        
+        <!-- Onboarding Header -->
+        <div class="text-center mb-6">
+          <span class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-1 rounded-full text-xs font-bold uppercase mb-2.5">
+            <i data-lucide="user-plus" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>First-Time Partner Registration</span>
+          </span>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Join the Ann Redistribution Grid
+          </h2>
+          <p class="text-slate-500 text-xs sm:text-sm max-w-lg mx-auto mt-1">
+            Set up your verified profile in 60 seconds to list surplus batches or claim fresh community meals.
+          </p>
+        </div>
+
+        <form id="signup-form" onsubmit="handleSignUpSubmit(event)" class="space-y-6">
+          
+          <!-- 1. Role Selection Grid -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
+              Step 1: Choose Your Partner Type
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              
+              <!-- Donor Option Card -->
+              <div 
+                id="role-card-donor"
+                onclick="setSignUpRole('donor')"
+                class="role-card active cursor-pointer p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 transition relative flex flex-col justify-between"
+              >
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-2xl">🍲</span>
+                    <span id="badge-donor" class="text-[10px] font-extrabold uppercase bg-emerald-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <i data-lucide="check" class="w-3 h-3"></i> Selected
+                    </span>
+                  </div>
+                  <h3 class="font-bold text-slate-900 text-sm">Food Donor / Kitchen</h3>
+                  <p class="text-[11px] text-slate-500 mt-1">
+                    Restaurants, Caterers, Bakeries, Banquet Halls, and Commercial Kitchens with excess meals.
+                  </p>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-emerald-200/60 text-[11px] font-semibold text-emerald-800 flex items-center gap-1.5">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+                  <span>FSSAI License Verified</span>
+                </div>
+              </div>
+
+              <!-- NGO Option Card -->
+              <div 
+                id="role-card-ngo"
+                onclick="setSignUpRole('ngo')"
+                class="role-card cursor-pointer p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/30 transition relative flex flex-col justify-between"
+              >
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-2xl">🤝</span>
+                    <span id="badge-ngo" class="text-[10px] font-extrabold uppercase bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full hidden items-center gap-1">
+                      <i data-lucide="check" class="w-3 h-3"></i> Selected
+                    </span>
+                  </div>
+                  <h3 class="font-bold text-slate-900 text-sm">NGO & Relief Shelter</h3>
+                  <p class="text-[11px] text-slate-500 mt-1">
+                    Charitable trusts, food shelters, orphanages, and disaster relief foundations claiming food.
+                  </p>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-slate-200 text-[11px] font-semibold text-slate-600 flex items-center gap-1.5">
+                  <i data-lucide="award" class="w-3.5 h-3.5 text-blue-600"></i>
+                  <span>NGO Darpan & 80G Certified</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Hidden Input for Selected Role -->
+          <input type="hidden" id="signup-role" value="donor">
+
+          <!-- 2. Organization & Contact Details -->
+          <div class="pt-2 border-t border-slate-200 space-y-3.5">
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Step 2: Organization Profile
+            </label>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <!-- Name -->
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Organization / Brand Name *</label>
+                <input 
+                  type="text" 
+                  id="signup-name" 
+                  required 
+                  placeholder="e.g. Royal Harvest Kitchen or Hope Foundation"
+                  class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-medium"
+                >
+              </div>
+
+              <!-- Email (Verified via OTP) -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-bold text-slate-700">Verified Email Address *</label>
+                  <span class="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.2 rounded">✓ Verified</span>
+                </div>
+                <input 
+                  type="email" 
+                  id="signup-email" 
+                  required 
+                  readonly
+                  class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 border border-slate-200 outline-none font-medium text-slate-600 cursor-not-allowed"
+                >
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <!-- Phone -->
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Dispatch / Contact Phone *</label>
+                <input 
+                  type="tel" 
+                  id="signup-phone" 
+                  required 
+                  placeholder="+91 98765 43210"
+                  class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-medium"
+                >
+              </div>
+
+              <!-- Category / Facility Type -->
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1" id="signup-category-label">Kitchen Facility Type *</label>
+                <select 
+                  id="signup-category" 
+                  class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-medium"
+                >
+                  <option value="Banquets & Commercial Kitchen">Banquets & Commercial Kitchen</option>
+                  <option value="Fine Dine & Restaurant">Fine Dine & Restaurant</option>
+                  <option value="Artisan Bakery & Cafe">Artisan Bakery & Cafe</option>
+                  <option value="Corporate Cafeteria">Corporate Cafeteria</option>
+                  <option value="Cloud Kitchen Facility">Cloud Kitchen Facility</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Official Credential Verification -->
+          <div class="pt-2 border-t border-slate-200 space-y-3.5">
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Step 3: Regulatory Verification
+            </label>
+
+            <!-- Dynamic Credentials Box -->
+            <div id="signup-donor-credentials" class="space-y-3">
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-bold text-slate-700">FSSAI Food Safety License Number *</label>
+                  <button type="button" onclick="generateDemoLicense('fssai')" class="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 hover:underline">
+                    ⚡ Generate Demo FSSAI
+                  </button>
+                </div>
+                <input 
+                  type="text" 
+                  id="signup-fssai" 
+                  placeholder="e.g. FSSAI-10019022008432"
+                  class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-mono text-xs font-bold uppercase"
+                >
+                <p class="text-[11px] text-slate-400 mt-1">Ensures compliant, hygienic surplus redistribution adhering to food standards.</p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Daily Kitchen Operating Hours</label>
+                <input 
+                  type="text" 
+                  id="signup-hours" 
+                  value="10:00 AM - 11:30 PM"
+                  placeholder="e.g. 10:00 AM - 11:30 PM"
+                  class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-medium"
+                >
+              </div>
+            </div>
+
+            <div id="signup-ngo-credentials" class="hidden space-y-4">
+              <!-- eNGO Registration & Authentication Section -->
+              <div class="p-4 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                      <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-slate-900 text-xs">eNGO Government Authentication</h4>
+                      <p class="text-[10px] text-slate-500">NITI Aayog NGO-DARPAN & 80G Validation</p>
+                    </div>
+                  </div>
+                  <span id="ngo-auth-badge" class="hidden text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full items-center gap-1">
+                    <i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Verified eNGO
+                  </span>
+                </div>
+
+                <!-- Input & Verify Button -->
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">
+                    NGO Darpan Unique ID / Society Registration Number *
+                  </label>
+                  <div class="flex gap-2">
+                    <input 
+                      type="text" 
+                      id="signup-darpan" 
+                      placeholder="e.g. DL/2019/0248819 or MH/2021/0192847"
+                      class="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-white border border-slate-200 outline-none focus:border-blue-500 font-mono text-xs font-bold uppercase tracking-wider"
+                    >
+                    <button 
+                      type="button" 
+                      id="btn-verify-darpan"
+                      onclick="verifyNgoRegistration()" 
+                      class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow transition active:scale-95 flex items-center gap-1.5 shrink-0"
+                    >
+                      <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                      <span id="btn-verify-text">Verify Darpan</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Sample Authentic eNGO ID Chips -->
+                <div>
+                  <span class="text-[10px] text-slate-500 block mb-1 font-medium">Or pick an authentic verified eNGO ID to test:</span>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="selectSampleNgoDarpan('DL/2019/0248819')" class="px-2.5 py-1 bg-white hover:bg-blue-100 border border-slate-200 text-slate-700 rounded-lg text-[11px] font-mono font-semibold transition flex items-center gap-1">
+                      <span>🏛️ DL/2019/0248819 (Delhi)</span>
+                    </button>
+                    <button type="button" onclick="selectSampleNgoDarpan('MH/2021/0192847')" class="px-2.5 py-1 bg-white hover:bg-blue-100 border border-slate-200 text-slate-700 rounded-lg text-[11px] font-mono font-semibold transition flex items-center gap-1">
+                      <span>🏛️ MH/2021/0192847 (Mumbai)</span>
+                    </button>
+                    <button type="button" onclick="selectSampleNgoDarpan('KA/2020/0394819')" class="px-2.5 py-1 bg-white hover:bg-blue-100 border border-slate-200 text-slate-700 rounded-lg text-[11px] font-mono font-semibold transition flex items-center gap-1">
+                      <span>🏛️ KA/2020/0394819 (Bangalore)</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Dynamic Live Authentication Result Box -->
+                <div id="ngo-verification-box" class="hidden p-3.5 rounded-xl bg-white border border-emerald-300 shadow-xs space-y-2 text-xs animate-in fade-in duration-200">
+                  <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                      </div>
+                      <span class="font-extrabold text-emerald-900 text-xs">Authenticated with NITI Aayog NGO-DARPAN</span>
+                    </div>
+                    <span class="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded" id="ngo-verified-darpan-tag">DL/2019/0248819</span>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+                    <div>
+                      <span class="text-slate-400 block">Registered Legal Entity:</span>
+                      <strong class="text-slate-800 font-semibold" id="ngo-verified-legal-name">Hope Shelter Network Relief Foundation</strong>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Jurisdiction & State:</span>
+                      <strong class="text-slate-800 font-semibold" id="ngo-verified-state">Delhi (NCT)</strong>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Registration Act:</span>
+                      <strong class="text-slate-800 font-semibold" id="ngo-verified-act">Societies Registration Act XXI of 1860</strong>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Income Tax 80G Status:</span>
+                      <strong class="text-emerald-700 font-semibold" id="ngo-verified-80g">Active & Verified (80G(5)(vi))</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Error Notice Container -->
+                <div id="ngo-verification-error" class="hidden p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 space-y-1"></div>
+              </div>
+
+              <!-- Authorized Officer & Tax Details -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Authorized Officer / Signatory Name *</label>
+                  <input 
+                    type="text" 
+                    id="signup-signatory" 
+                    placeholder="e.g. Dr. Alok Verma (General Secretary)"
+                    class="w-full px-3.5 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 font-medium"
+                  >
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">eNGO Trust PAN / 12A Certificate No. *</label>
+                  <input 
+                    type="text" 
+                    id="signup-pan" 
+                    placeholder="e.g. AAATH2819E"
+                    class="w-full px-3.5 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 font-mono text-xs font-bold uppercase"
+                  >
+                </div>
+              </div>
+
+              <!-- Capacity & Fleet -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Daily Meal Distribution Capacity *</label>
+                  <input 
+                    type="text" 
+                    id="signup-capacity" 
+                    value="300 Meals / Day"
+                    placeholder="e.g. 300 Meals / Day"
+                    class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 font-medium"
+                  >
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Volunteer & Delivery Fleet *</label>
+                  <input 
+                    type="text" 
+                    id="signup-fleet" 
+                    value="2 Delivery Vans, 2 Bikes"
+                    placeholder="e.g. 2 Vans, 2 Electric Bikes"
+                    class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 font-medium"
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Physical Location & GPS Station -->
+          <div class="pt-2 border-t border-slate-200 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Step 4: Location & GPS Station
+              </label>
+              <span class="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                <i data-lucide="map-pin" class="w-3 h-3"></i> Auto-routing Enabled
+              </span>
+            </div>
+
+            <!-- Address Input -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Physical Street Address / Landmark *</label>
+              <textarea 
+                id="signup-address" 
+                rows="2" 
+                required 
+                placeholder="42 Heritage Boulevard, Central Commercial Sector"
+                class="w-full px-3.5 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 outline-none focus:bg-white focus:border-emerald-500 font-medium"
+              ></textarea>
+            </div>
+
+            <!-- GPS Mini-Map Box -->
+            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></div>
+                  <span class="text-xs font-bold text-slate-800">Station Coordinates:</span>
+                  <span id="signup-coords-display" class="font-mono text-xs text-emerald-800 font-bold">28.6139° N, 77.2090° E</span>
+                </div>
+                <button 
+                  type="button" 
+                  onclick="detectSignUpGps()" 
+                  class="flex items-center gap-1 text-[11px] font-bold bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1 rounded-lg transition shadow-xs"
+                >
+                  <i data-lucide="crosshair" class="w-3 h-3 text-emerald-600"></i>
+                  <span>Auto-Detect My GPS</span>
+                </button>
+              </div>
+
+              <!-- Interactive Signup Leaflet Map -->
+              <div id="signup-map" class="w-full h-36 rounded-xl border border-slate-200 overflow-hidden relative z-0 shadow-inner"></div>
+              
+              <!-- Hidden Inputs for Lat & Lng -->
+              <input type="hidden" id="signup-lat" value="28.6139">
+              <input type="hidden" id="signup-lng" value="77.2090">
+            </div>
+          </div>
+
+          <!-- 5. Submit Button -->
+          <div class="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p class="text-xs text-slate-400 text-center sm:text-left">
+              By registering, you agree to the Ann Food Safety and Zero-Waste Quality Standards.
+            </p>
+            <button 
+              type="submit" 
+              class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-7 py-3.5 rounded-2xl shadow-lg hover:shadow-xl transition active:scale-95 text-sm flex items-center justify-center gap-2 shrink-0"
+            >
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              <span>Complete Registration & Launch Portal</span>
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="max-w-3xl mx-auto w-full text-center text-xs text-slate-400 pt-4 border-t border-slate-200">
+      <span>Ann Zero-Waste Alliance • FSSAI & NGO Darpan Verified Redistribution Network</span>
+    </footer>
+
   </section>
 
 
@@ -346,9 +779,67 @@
           </div>
         </div>
 
-        <!-- Controls: Profile Drawer & Logout -->
-        <div class="flex items-center gap-2.5 sm:gap-3">
+        <!-- Controls: Notification Bell, Profile Drawer & Logout -->
+        <div class="flex items-center gap-2 sm:gap-2.5 relative">
           
+          <!-- Notification Bell Button & Dropdown Drawer -->
+          <div class="relative">
+            <button 
+              id="ngo-bell-btn"
+              onclick="toggleNgoNotificationsDropdown()" 
+              class="relative w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition shadow-xs"
+              title="Surplus Food Alerts"
+            >
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <!-- Unread Count Badge -->
+              <span id="ngo-bell-count" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center shadow-xs animate-bounce">
+                0
+              </span>
+            </button>
+
+            <!-- Notifications Dropdown Drawer -->
+            <div 
+              id="ngo-notifications-dropdown" 
+              class="hidden absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 p-3.5 space-y-2.5 animate-in fade-in zoom-in-95 duration-150"
+            >
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div class="flex items-center gap-1.5">
+                  <i data-lucide="bell-ring" class="w-4 h-4 text-emerald-600"></i>
+                  <span class="font-bold text-slate-900 text-xs">Live Surplus Food Alerts</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button onclick="clearNgoNotifications()" class="text-[10px] text-slate-400 hover:text-slate-600 font-semibold">Clear All</button>
+                  <button onclick="toggleNgoNotificationsDropdown()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                </div>
+              </div>
+
+              <!-- Desktop Notification Quick Action -->
+              <div class="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100 text-[11px]">
+                <span class="text-slate-500 font-medium flex items-center gap-1">
+                  <i data-lucide="monitor" class="w-3.5 h-3.5 text-slate-400"></i>
+                  <span>Desktop Alerts:</span>
+                </span>
+                <button 
+                  id="btn-desktop-notif-toggle" 
+                  type="button"
+                  onclick="requestDesktopNotificationPermission()" 
+                  class="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 transition text-[11px]"
+                >
+                  <i data-lucide="bell" class="w-3 h-3"></i>
+                  <span>Enable Browser Alerts</span>
+                </button>
+              </div>
+
+              <!-- Notifications List Container -->
+              <div id="ngo-notifications-list" class="space-y-2 max-h-72 overflow-y-auto pr-1 text-xs">
+                <div class="p-4 text-center text-slate-400 text-xs">
+                  <i data-lucide="bell-off" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
+                  <span>No new surplus food alerts right now</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Interactive NGO Profile Pill -->
           <button 
             onclick="openProfileModal()" 
@@ -371,18 +862,47 @@
     <!-- Main NGO Workspace -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
       
-      <!-- Food Radar Header & Search -->
+      <!-- Food Radar Header, Controls & Search -->
       <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-soft">
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
-          <h3 class="font-bold text-slate-900 text-base">Surplus Food Ready for Pickup</h3>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+            <h3 class="font-bold text-slate-900 text-base">Surplus Food Ready for Pickup</h3>
+          </div>
+          <span class="hidden md:inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Radar Active
+          </span>
         </div>
+
         <div class="flex items-center gap-2">
+          <!-- Audio Alert Chime Toggle -->
+          <button 
+            type="button"
+            id="btn-sound-toggle"
+            onclick="toggleNgoSound()" 
+            class="flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+            title="Toggle Alert Sounds"
+          >
+            <i id="sound-toggle-icon" data-lucide="volume-2" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span class="hidden sm:inline" id="sound-toggle-text">Sound: ON</span>
+          </button>
+
+          <!-- Simulate Live Food Alert Test Button -->
+          <button 
+            type="button" 
+            onclick="simulateFoodAlert()" 
+            class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition active:scale-95 shrink-0"
+            title="Simulate Real-Time Food Alert"
+          >
+            <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
+            <span>Test Alert</span>
+          </button>
+
           <input 
             type="text" 
             placeholder="Search food or kitchen..." 
             oninput="renderNgoCards(this.value)"
-            class="px-3.5 py-2 text-xs rounded-xl bg-slate-100 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 w-full sm:w-64"
+            class="px-3.5 py-2 text-xs rounded-xl bg-slate-100 border border-slate-200 outline-none focus:bg-white focus:border-blue-500 w-full sm:w-56"
           >
         </div>
       </div>
@@ -392,6 +912,69 @@
 
     </main>
   </section>
+
+
+  <!-- ==================== NGO SURPLUS FOOD ALERT TOAST ==================== -->
+  <div 
+    id="ngo-surplus-toast" 
+    class="fixed top-5 right-5 z-50 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl border-2 border-emerald-500 hidden items-start gap-3 max-w-sm w-full transition-all duration-300 transform translate-y-0 animate-in slide-in-from-top-4"
+  >
+    <!-- Food Icon / Image Box -->
+    <div id="ngo-toast-media" class="w-12 h-12 rounded-xl bg-emerald-100 text-2xl flex items-center justify-center shrink-0 shadow-xs border border-emerald-200 overflow-hidden">
+      🍲
+    </div>
+
+    <!-- Alert Details -->
+    <div class="flex-1 min-w-0 text-xs">
+      <div class="flex items-center justify-between gap-1">
+        <span class="font-bold text-emerald-800 flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>New Surplus Available!</span>
+        </span>
+        <span class="text-[10px] font-mono text-slate-400">Just now</span>
+      </div>
+
+      <h4 id="ngo-toast-title" class="font-extrabold text-slate-900 text-sm leading-snug mt-0.5 truncate">
+        30 Servings Veg Thali
+      </h4>
+
+      <div class="flex items-center gap-1.5 text-slate-500 text-[11px] mt-0.5">
+        <span id="ngo-toast-donor" class="truncate font-semibold text-slate-700">Royal Spice Caterers</span>
+        <span>•</span>
+        <span id="ngo-toast-dist" class="text-emerald-700 font-bold">1.2 km away</span>
+      </div>
+
+      <div class="flex items-center gap-1.5 text-[10px] text-amber-700 font-semibold mt-1 bg-amber-50 px-2 py-0.5 rounded-md inline-flex border border-amber-200">
+        <i data-lucide="clock" class="w-3 h-3 text-amber-600"></i>
+        <span id="ngo-toast-expires">Expires in 1h 30m</span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-2.5 flex items-center gap-2">
+        <button 
+          id="ngo-toast-claim-btn"
+          onclick="" 
+          class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1"
+        >
+          <i data-lucide="check" class="w-3 h-3"></i>
+          <span>Claim Food</span>
+        </button>
+        <button 
+          id="ngo-toast-map-btn"
+          onclick="" 
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-1.5 px-2.5 rounded-lg text-xs transition flex items-center gap-1"
+        >
+          <i data-lucide="navigation" class="w-3 h-3"></i>
+          <span>Route</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Dismiss Button -->
+    <button onclick="dismissNgoAlertToast()" class="text-slate-400 hover:text-slate-600 p-0.5">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+  </div>
 
 
   <!-- ==================== GMAIL NOTIFICATION TOAST ==================== -->

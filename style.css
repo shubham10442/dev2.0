@@ -404,3 +404,91 @@ button:has(svg path[fill="#4285F4"]):hover {
   border-color: #b5c7bc !important;
   box-shadow: 0 8px 20px -3px rgba(40, 55, 45, 0.12) !important;
 }
+
+/* --- 12. Onboarding & First-Time Sign Up Styling --- */
+.role-card {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 1.25rem;
+}
+
+.role-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(35, 60, 45, 0.08);
+}
+
+.role-card.active#role-card-donor {
+  border-color: #3b7454 !important;
+  background-color: #edf5ef !important;
+  box-shadow: 0 10px 24px -4px rgba(59, 116, 84, 0.18) !important;
+}
+
+.role-card.active#role-card-ngo {
+  border-color: #35637d !important;
+  background-color: #ebf3f7 !important;
+  box-shadow: 0 10px 24px -4px rgba(53, 99, 125, 0.18) !important;
+}
+
+#signup-map {
+  border-radius: 0.85rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.custom-gps-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- 13. eNGO Authentication Certificate Styling --- */
+#ngo-verification-box {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 248, 243, 0.92) 100%) !important;
+  border: 1px solid rgba(77, 137, 102, 0.35) !important;
+  box-shadow: 0 4px 16px -2px rgba(43, 94, 67, 0.08);
+}
+
+#ngo-verification-error {
+  background-color: #fdf2f2 !important;
+  border-color: #f8b4b4 !important;
+  color: #9b1c1c !important;
+}
+
+#btn-verify-darpan {
+  box-shadow: 0 4px 12px -2px rgba(44, 88, 112, 0.32) !important;
+}
+
+/* --- 14. Real-Time NGO Surplus Food Alerts & Notification Bell --- */
+#ngo-surplus-toast {
+  background: rgba(254, 252, 248, 0.97) !important;
+  backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(77, 137, 102, 0.5) !important;
+  box-shadow: 0 16px 36px -6px rgba(22, 51, 35, 0.22), 0 0 0 1px rgba(77, 137, 102, 0.15);
+  animation: slideInToast 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInToast {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+#ngo-notifications-dropdown {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 18px 40px -8px rgba(35, 60, 45, 0.16);
+}
+
+#ngo-notifications-list::-webkit-scrollbar {
+  width: 4px;
+}
+#ngo-notifications-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+
+

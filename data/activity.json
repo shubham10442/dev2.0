@@ -1,5 +1,87 @@
 [
   {
+    "id": 1787999475442,
+    "type": "AUTH_OTP_SENT",
+    "title": "OTP requested for donor@gmail.com",
+    "description": "Generated (Simulation Mode)",
+    "meta": {},
+    "timestamp": "2026-08-29T10:31:15.414Z"
+  },
+  {
+    "id": 1787993841951,
+    "type": "LISTING_CREATED",
+    "title": "Royal Spice Caterers listed surplus food",
+    "description": "Fresh Paneer Tikka & Naan Trays (50 Servings) (50 servings)",
+    "meta": {
+      "id": 1787993841639
+    },
+    "timestamp": "2026-08-29T08:57:21.639Z"
+  },
+  {
+    "id": 1787993588206,
+    "type": "AUTH_REGISTER_SUCCESS",
+    "title": "New NGO registered: Hope Shelter Network Relief Foundation",
+    "description": "test.relieftrust@gmail.com • Darpan Verified: NGO-DARPAN/DL/2019/0248819",
+    "meta": {},
+    "timestamp": "2026-08-29T08:53:07.306Z"
+  },
+  {
+    "id": 1787993587465,
+    "type": "NGO_DARPAN_VERIFIED",
+    "title": "eNGO Darpan Validated: MH/2022/987654",
+    "description": "Maharashtra • Reg Year: 2022",
+    "meta": {},
+    "timestamp": "2026-08-29T08:53:07.273Z"
+  },
+  {
+    "id": 1787993588184,
+    "type": "NGO_DARPAN_VERIFIED",
+    "title": "eNGO Authenticated: Hope Shelter Network Relief Foundation",
+    "description": "Darpan ID: DL/2019/0248819 • 80G Active",
+    "meta": {},
+    "timestamp": "2026-08-29T08:53:07.256Z"
+  },
+  {
+    "id": 1787993190753,
+    "type": "AUTH_LOGIN_SUCCESS",
+    "title": "Fresh Harvest Bakery logged in",
+    "description": "Role: donor • test.freshkitchen@gmail.com",
+    "meta": {},
+    "timestamp": "2026-08-29T08:46:30.147Z"
+  },
+  {
+    "id": 1787993190135,
+    "type": "AUTH_OTP_SENT",
+    "title": "OTP requested for test.freshkitchen@gmail.com",
+    "description": "Verification code generated for sign-in",
+    "meta": {},
+    "timestamp": "2026-08-29T08:46:30.135Z"
+  },
+  {
+    "id": 1787993190537,
+    "type": "AUTH_REGISTER_SUCCESS",
+    "title": "New DONOR registered: Fresh Harvest Bakery",
+    "description": "test.freshkitchen@gmail.com • Setup complete",
+    "meta": {},
+    "timestamp": "2026-08-29T08:46:30.132Z"
+  },
+  {
+    "id": 1787993190959,
+    "type": "AUTH_OTP_VERIFIED_NEW",
+    "title": "New user verified OTP: test.freshkitchen@gmail.com",
+    "description": "Proceeding to sign up onboarding",
+    "meta": {},
+    "timestamp": "2026-08-29T08:46:30.117Z"
+  },
+  {
+    "id": 1787993191058,
+    "type": "AUTH_OTP_SENT",
+    "title": "OTP requested for test.freshkitchen@gmail.com",
+    "description": "Verification code generated for sign-in",
+    "meta": {},
+    "timestamp": "2026-08-29T08:46:30.107Z"
+  },
+  {
     "id": 1787984164251,
     "type": "LISTING_CANCELLED",
     "title": "Listing cancelled: 50 Fresh Biryani Boxes",

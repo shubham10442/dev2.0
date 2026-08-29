@@ -17,29 +17,102 @@ let donorMap = null;
 let donorMarker = null;
 let donorCircle = null;
 let routeMap = null;
+let signUpMap = null;
+let signUpMarker = null;
+
+// NGO Real-Time Food Alert Notifications State
+const NGO_NOTIFS_KEY = 'ann_ngo_notifications_v2';
+let ngoNotifications = [];
+let ngoSoundEnabled = true;
+let ngoToastTimer = null;
+
+// Cross-tab Real-Time Synchronization Channel
+const gridChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('ann_food_grid_sync') : null;
+
+if (gridChannel) {
+  gridChannel.onmessage = (event) => {
+    const { type, payload } = event.data || {};
+    if (type === 'listing:created') {
+      loadListings().then(() => {
+        if (currentRole === 'donor') {
+          renderDonorCards();
+        } else if (currentRole === 'ngo') {
+          renderNgoCards();
+          if (payload) showNgoFoodAlert(payload);
+        }
+        updateImpactStats();
+      });
+    } else if (type === 'listing:claimed') {
+      loadListings().then(() => {
+        if (currentRole === 'donor') renderDonorCards();
+        else if (currentRole === 'ngo') {
+          renderNgoCards();
+          if (payload && payload.id) markNgoNotificationClaimed(payload.id);
+        }
+        updateImpactStats();
+      });
+    } else if (type === 'listing:deleted') {
+      loadListings().then(() => {
+        if (currentRole === 'donor') renderDonorCards();
+        else if (currentRole === 'ngo') {
+          renderNgoCards();
+          if (payload && payload.id) removeNgoNotification(payload.id);
+        }
+      });
+    }
+  };
+}
 
 const isServerEnv = window.location.protocol.startsWith('http');
 const API_BASE = isServerEnv ? '/api' : null;
 
-// Real-Time Server-Sent Events (SSE) Listener
+// Real-Time Server-Sent Events (SSE) Listener with Reconnect Support
 function initSSE() {
   if (!isServerEnv || typeof EventSource === 'undefined') return;
   try {
     const sse = new EventSource('/api/events');
+
+    sse.onopen = () => {
+      console.log('⚡ SSE connection active for real-time surplus food alerts');
+    };
+
+    sse.onerror = (err) => {
+      console.warn('SSE connection disrupted; browser will auto-reconnect', err);
+    };
+
     sse.addEventListener('listing:created', (e) => {
-      beep(587, 'sine', 0.2);
+      let createdItem = null;
+      try {
+        if (e.data) createdItem = JSON.parse(e.data);
+      } catch (err) {}
+
       loadListings().then(() => {
-        if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') renderNgoCards();
+        if (currentRole === 'donor') {
+          renderDonorCards();
+        } else if (currentRole === 'ngo') {
+          renderNgoCards();
+          const target = createdItem || (listings.length > 0 ? listings[0] : null);
+          if (target) showNgoFoodAlert(target);
+        }
         updateImpactStats();
       });
     });
 
     sse.addEventListener('listing:claimed', (e) => {
       beep(659, 'sine', 0.25);
+      let claimedItem = null;
+      try {
+        if (e.data) claimedItem = JSON.parse(e.data);
+      } catch (err) {}
+
       loadListings().then(() => {
         if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') renderNgoCards();
+        else if (currentRole === 'ngo') {
+          renderNgoCards();
+          if (claimedItem && claimedItem.id) {
+            markNgoNotificationClaimed(claimedItem.id);
+          }
+        }
         updateImpactStats();
       });
     });
@@ -54,9 +127,19 @@ function initSSE() {
     });
 
     sse.addEventListener('listing:deleted', (e) => {
+      let deletedData = null;
+      try {
+        if (e.data) deletedData = JSON.parse(e.data);
+      } catch (err) {}
+
       loadListings().then(() => {
         if (currentRole === 'donor') renderDonorCards();
-        else if (currentRole === 'ngo') renderNgoCards();
+        else if (currentRole === 'ngo') {
+          renderNgoCards();
+          if (deletedData && deletedData.id) {
+            removeNgoNotification(deletedData.id);
+          }
+        }
       });
     });
   } catch (err) {
@@ -349,6 +432,13 @@ async function handleOtpSubmit(e) {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.isNewUser) {
+          // Detected brand new first-time login!
+          dismissGmailToast();
+          closeGoogleAuthModal();
+          openSignUpFlow(data.email, data.suggestedRole || pendingAuthUser.role);
+          return;
+        }
         verifiedUser = data.data;
       } else {
         errorMsg.textContent = data.error || 'Invalid OTP code. Please try again.';
@@ -364,25 +454,14 @@ async function handleOtpSubmit(e) {
   // Local/Offline verification fallback
   if (!verifiedUser) {
     if (enteredOtp === activeOtp) {
-      verifiedUser = fallbackUsers[pendingAuthUser.email] || {
-        email: pendingAuthUser.email,
-        name: pendingAuthUser.name || 'Ann Partner',
-        role: pendingAuthUser.role || 'donor',
-        photo: pendingAuthUser.photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(pendingAuthUser.email)}`,
-        phone: '+91 98000 00000',
-        address: 'Central District, City Zone',
-        kitchenType: 'Commercial Kitchen',
-        licenseId: 'FSSAI-10019022008432',
-        shelterType: 'Community Center',
-        regId: 'NGO-REG/448291',
-        capacity: '250 Meals/Day',
-        fleet: '2 Vans',
-        operatingHours: '09:00 AM - 10:00 PM',
-        lat: 28.6139,
-        lng: 77.2090,
-        gpsAddress: 'Central District Station',
-        verified: true
-      };
+      if (!fallbackUsers[pendingAuthUser.email]) {
+        // Brand new local user
+        dismissGmailToast();
+        closeGoogleAuthModal();
+        openSignUpFlow(pendingAuthUser.email, pendingAuthUser.role);
+        return;
+      }
+      verifiedUser = fallbackUsers[pendingAuthUser.email];
     } else {
       errorMsg.textContent = 'Invalid verification code. Please check your Gmail notification.';
       errorMsg.classList.remove('hidden');
@@ -405,7 +484,7 @@ async function handleOtpSubmit(e) {
 
   await switchView(currentRole, currentEntity, currentEmail);
 
-  beep(role === 'donor' ? 523 : 659);
+  beep(currentRole === 'donor' ? 523 : 659);
   confetti({
     particleCount: 50,
     spread: 70,
@@ -428,7 +507,8 @@ function logout() {
 
 // 4. View Routing & Header Hydration
 async function switchView(role, entityName = '', email = '') {
-  ['login', 'donor', 'ngo'].forEach(v => {
+  currentRole = role;
+  ['login', 'signup', 'donor', 'ngo'].forEach(v => {
     const el = document.getElementById(`view-${v}`);
     if (el) {
       el.classList.toggle('hidden', v !== role);
@@ -438,6 +518,12 @@ async function switchView(role, entityName = '', email = '') {
   });
 
   if (role === 'login') return;
+  if (role === 'signup') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => initSignUpMap(), 250);
+    lucide.createIcons();
+    return;
+  }
 
   await loadListings();
 
@@ -464,16 +550,877 @@ async function switchView(role, entityName = '', email = '') {
       const avatar = document.getElementById('ngo-nav-avatar');
 
       if (bannerName) bannerName.textContent = currentUserProfile.name;
-      if (profileName) profileName.textContent = `${currentUserProfile.name} • Verified Relief NGO`;
+      if (profileName) {
+        const darpanTag = currentUserProfile.regId ? ` • Darpan: ${currentUserProfile.regId.replace('NGO-DARPAN/', '')}` : '';
+        profileName.textContent = `${currentUserProfile.name} • Verified Relief eNGO${darpanTag}`;
+      }
       if (btnName) btnName.textContent = currentUserProfile.name.split(' ')[0] || 'Profile';
       if (avatar && currentUserProfile.photo) avatar.src = currentUserProfile.photo;
 
       renderNgoCards();
+      syncNgoNotificationsWithListings();
+      updateDesktopNotifButton();
+    }
+  } else {
+    // Role view without full profile cache (e.g. quick test or direct role entry)
+    if (role === 'donor') {
+      renderDonorCards();
+    } else if (role === 'ngo') {
+      renderNgoCards();
+      syncNgoNotificationsWithListings();
+      updateDesktopNotifButton();
     }
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
   lucide.createIcons();
+}
+
+/* ==========================================================================
+   4b. First-Time Sign Up & Partner Onboarding Flow
+   ========================================================================== */
+
+function startDirectSignUp() {
+  beep(520, 'sine', 0.15);
+  openGoogleAuthModal();
+  const customEmailInput = document.getElementById('google-custom-email');
+  if (customEmailInput) {
+    setTimeout(() => {
+      customEmailInput.focus();
+      customEmailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+  }
+}
+
+function startNgoSignUp() {
+  beep(587, 'sine', 0.15);
+  openSignUpFlow('relief.director@gmail.com', 'ngo');
+}
+
+function selectSampleNgoDarpan(id) {
+  const input = document.getElementById('signup-darpan');
+  if (input) {
+    input.value = id;
+    verifyNgoRegistration();
+  }
+}
+
+let isNgoDarpanVerified = false;
+
+async function verifyNgoRegistration() {
+  const input = document.getElementById('signup-darpan');
+  if (!input) return;
+  const regNo = input.value.trim();
+
+  const btn = document.getElementById('btn-verify-darpan');
+  const btnText = document.getElementById('btn-verify-text');
+  const resultBox = document.getElementById('ngo-verification-box');
+  const errorBox = document.getElementById('ngo-verification-error');
+  const badge = document.getElementById('ngo-auth-badge');
+
+  if (!regNo) {
+    if (errorBox) {
+      errorBox.innerHTML = '<strong>Registration Number Required:</strong> Please enter an NGO Darpan Unique ID (e.g. DL/2019/0248819).';
+      errorBox.classList.remove('hidden');
+    }
+    beep(220, 'sawtooth');
+    return;
+  }
+
+  beep(520, 'sine', 0.1);
+  if (btnText) btnText.textContent = 'Verifying...';
+  if (btn) btn.disabled = true;
+
+  let data = null;
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/ngo/verify-darpan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registrationNo: regNo })
+      });
+      data = await res.json();
+    } catch (err) {
+      console.warn('verify-darpan API error, using client validation:', err);
+    }
+  }
+
+  // Client-side fallback
+  if (!data) {
+    let clean = regNo.toUpperCase().replace(/^NGO-DARPAN\//, '').replace(/^DARPAN\//, '');
+    if (clean === 'DL/2019/0248819' || clean === 'MH/2021/0192847' || clean === 'KA/2020/0394819' || clean === 'WB/2018/0109283' || /^[A-Z]{2}\/\d{4}\/\d{5,8}$/.test(clean)) {
+      data = {
+        success: true,
+        verified: true,
+        registrationNo: clean,
+        legalName: clean === 'DL/2019/0248819' ? 'Hope Shelter Network Relief Foundation' : (clean === 'MH/2021/0192847' ? 'Seva Annapurna Food Bank Trust' : 'Karuna Relief Care Foundation'),
+        state: clean.startsWith('DL') ? 'Delhi (NCT)' : (clean.startsWith('MH') ? 'Maharashtra' : 'Karnataka'),
+        act: 'Societies Registration Act XXI of 1860 / Indian Trusts Act',
+        section80G: 'Active & Verified (80G(5)(vi) Compliant)',
+        section12A: 'Registered (AAATH2819E)',
+        authorizedSignatory: 'Dr. Alok Verma (General Secretary)'
+      };
+    } else {
+      data = {
+        success: false,
+        error: 'Invalid NGO Darpan / Society Registration Number format. Standard format is STATE/YEAR/NUMBER (e.g. DL/2019/0248819).'
+      };
+    }
+  }
+
+  if (btnText) btnText.textContent = 'Verify Darpan';
+  if (btn) btn.disabled = false;
+
+  if (data.success && data.verified) {
+    isNgoDarpanVerified = true;
+    if (errorBox) errorBox.classList.add('hidden');
+    if (resultBox) resultBox.classList.remove('hidden');
+    if (badge) {
+      badge.classList.remove('hidden');
+      badge.classList.add('flex');
+    }
+
+    const darpanTag = document.getElementById('ngo-verified-darpan-tag');
+    const legalNameEl = document.getElementById('ngo-verified-legal-name');
+    const stateEl = document.getElementById('ngo-verified-state');
+    const actEl = document.getElementById('ngo-verified-act');
+    const g80El = document.getElementById('ngo-verified-80g');
+
+    if (darpanTag) darpanTag.textContent = data.registrationNo;
+    if (legalNameEl) legalNameEl.textContent = data.legalName;
+    if (stateEl) stateEl.textContent = data.state;
+    if (actEl) actEl.textContent = data.act;
+    if (g80El) g80El.textContent = data.section80G;
+
+    // Auto-update Organization name & Signatory if blank or default
+    const nameInput = document.getElementById('signup-name');
+    if (nameInput && (!nameInput.value || nameInput.value.includes('Food Works') || nameInput.value.includes('Relief Director'))) {
+      nameInput.value = data.legalName;
+    }
+    const signatoryInput = document.getElementById('signup-signatory');
+    if (signatoryInput && data.authorizedSignatory) {
+      signatoryInput.value = data.authorizedSignatory;
+    }
+
+    beep(880, 'sine', 0.25);
+    lucide.createIcons();
+  } else {
+    isNgoDarpanVerified = false;
+    if (resultBox) resultBox.classList.add('hidden');
+    if (badge) badge.classList.add('hidden');
+    if (errorBox) {
+      errorBox.innerHTML = `<strong>Verification Failed:</strong> ${data.error || 'Registration number could not be authenticated.'}<br><span class="text-[11px] text-slate-500">Please check the Darpan format or pick one of the sample IDs above.</span>`;
+      errorBox.classList.remove('hidden');
+    }
+    beep(220, 'sawtooth');
+  }
+}
+
+function openSignUpFlow(email, role = 'donor') {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  
+  // Populate verified email in onboarding form
+  const emailInput = document.getElementById('signup-email');
+  if (emailInput) emailInput.value = cleanEmail;
+
+  // Auto-suggest organization name from email if empty
+  const nameInput = document.getElementById('signup-name');
+  if (nameInput) {
+    const rawName = cleanEmail.split('@')[0] || '';
+    const formatted = rawName.replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    nameInput.value = formatted ? `${formatted} Food Works` : '';
+  }
+
+  // Pre-generate FSSAI / NGO Darpan demo license
+  setSignUpRole(role || 'donor');
+  generateDemoLicense(role === 'ngo' ? 'darpan' : 'fssai');
+
+  // Navigate to signup view
+  switchView('signup');
+  beep(659, 'sine', 0.2);
+}
+
+function setSignUpRole(role) {
+  beep(480, 'sine', 0.1);
+  const roleInput = document.getElementById('signup-role');
+  if (roleInput) roleInput.value = role;
+
+  const donorCard = document.getElementById('role-card-donor');
+  const ngoCard = document.getElementById('role-card-ngo');
+  const badgeDonor = document.getElementById('badge-donor');
+  const badgeNgo = document.getElementById('badge-ngo');
+  const donorCreds = document.getElementById('signup-donor-credentials');
+  const ngoCreds = document.getElementById('signup-ngo-credentials');
+  const categoryLabel = document.getElementById('signup-category-label');
+  const categorySelect = document.getElementById('signup-category');
+
+  if (role === 'donor') {
+    if (donorCard) {
+      donorCard.className = 'role-card active cursor-pointer p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 transition relative flex flex-col justify-between';
+    }
+    if (ngoCard) {
+      ngoCard.className = 'role-card cursor-pointer p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/30 transition relative flex flex-col justify-between';
+    }
+    if (badgeDonor) badgeDonor.classList.remove('hidden');
+    if (badgeNgo) badgeNgo.classList.add('hidden');
+    if (donorCreds) donorCreds.classList.remove('hidden');
+    if (ngoCreds) ngoCreds.classList.add('hidden');
+
+    if (categoryLabel) categoryLabel.textContent = 'Kitchen Facility Type *';
+    if (categorySelect) {
+      categorySelect.innerHTML = `
+        <option value="Banquets & Commercial Kitchen">Banquets & Commercial Kitchen</option>
+        <option value="Fine Dine & Restaurant">Fine Dine & Restaurant</option>
+        <option value="Artisan Bakery & Cafe">Artisan Bakery & Cafe</option>
+        <option value="Corporate Cafeteria">Corporate Cafeteria</option>
+        <option value="Cloud Kitchen Facility">Cloud Kitchen Facility</option>
+      `;
+    }
+  } else {
+    if (ngoCard) {
+      ngoCard.className = 'role-card active cursor-pointer p-4 rounded-2xl border-2 border-blue-500 bg-blue-50/50 hover:bg-blue-50 transition relative flex flex-col justify-between';
+    }
+    if (donorCard) {
+      donorCard.className = 'role-card cursor-pointer p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition relative flex flex-col justify-between';
+    }
+    if (badgeNgo) {
+      badgeNgo.classList.remove('hidden');
+      badgeNgo.className = 'text-[10px] font-extrabold uppercase bg-blue-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1';
+    }
+    if (badgeDonor) badgeDonor.classList.add('hidden');
+    if (ngoCreds) ngoCreds.classList.remove('hidden');
+    if (donorCreds) donorCreds.classList.add('hidden');
+
+    if (categoryLabel) categoryLabel.textContent = 'Relief Shelter Category *';
+    if (categorySelect) {
+      categorySelect.innerHTML = `
+        <option value="Community Relief & Food Shelter">Community Relief & Food Shelter</option>
+        <option value="Orphanage & Children Relief">Orphanage & Children Relief</option>
+        <option value="Elderly Care & Community Home">Elderly Care & Community Home</option>
+        <option value="Disaster Relief Foundation">Disaster Relief Foundation</option>
+        <option value="Mobile Community Hunger Drive">Mobile Community Hunger Drive</option>
+      `;
+    }
+
+    const darpanInput = document.getElementById('signup-darpan');
+    if (darpanInput && !darpanInput.value) {
+      darpanInput.value = 'DL/2019/0248819';
+    }
+    setTimeout(() => verifyNgoRegistration(), 120);
+  }
+
+  lucide.createIcons();
+}
+
+function generateDemoLicense(type) {
+  beep(740, 'sine', 0.1);
+  if (type === 'fssai') {
+    const input = document.getElementById('signup-fssai');
+    if (input) {
+      input.value = 'FSSAI-' + Math.floor(10000000000000 + Math.random() * 90000000000000);
+    }
+  } else {
+    const input = document.getElementById('signup-darpan');
+    if (input) {
+      input.value = 'NGO-DARPAN/DL/' + new Date().getFullYear() + '/' + Math.floor(100000 + Math.random() * 900000);
+    }
+  }
+}
+
+function initSignUpMap(lat = 28.6139, lng = 77.2090) {
+  const container = document.getElementById('signup-map');
+  if (!container || typeof L === 'undefined') return;
+
+  if (signUpMap) {
+    signUpMap.remove();
+    signUpMap = null;
+  }
+
+  signUpMap = L.map('signup-map', { zoomControl: false }).setView([lat, lng], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(signUpMap);
+
+  const pinIcon = L.divIcon({
+    className: 'custom-gps-pin',
+    html: `<div style="background: #2b5e43; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 4px 14px rgba(0,0,0,0.3); border: 2.5px solid white;">📍</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+
+  signUpMarker = L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(signUpMap);
+
+  signUpMarker.on('dragend', (e) => {
+    const pos = e.target.getLatLng();
+    setSignUpCoords(pos.lat, pos.lng);
+  });
+
+  signUpMap.on('click', (e) => {
+    signUpMarker.setLatLng(e.latlng);
+    setSignUpCoords(e.latlng.lat, e.latlng.lng);
+  });
+
+  setTimeout(() => {
+    if (signUpMap) signUpMap.invalidateSize();
+  }, 300);
+}
+
+function setSignUpCoords(lat, lng) {
+  const latEl = document.getElementById('signup-lat');
+  const lngEl = document.getElementById('signup-lng');
+  const display = document.getElementById('signup-coords-display');
+  if (latEl) latEl.value = Number(lat).toFixed(4);
+  if (lngEl) lngEl.value = Number(lng).toFixed(4);
+  if (display) display.textContent = `${Number(lat).toFixed(4)}° N, ${Number(lng).toFixed(4)}° E`;
+}
+
+function detectSignUpGps() {
+  beep(600, 'sine', 0.15);
+  const display = document.getElementById('signup-coords-display');
+  if (display) display.textContent = 'Detecting GPS station...';
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setSignUpCoords(lat, lng);
+        if (signUpMap && signUpMarker) {
+          signUpMap.setView([lat, lng], 15);
+          signUpMarker.setLatLng([lat, lng]);
+        }
+        beep(880, 'sine', 0.2);
+      },
+      (err) => {
+        console.warn('Geolocation failed or denied, using simulated accurate station:', err);
+        const lat = 28.6139 + (Math.random() - 0.5) * 0.015;
+        const lng = 77.2090 + (Math.random() - 0.5) * 0.015;
+        setSignUpCoords(lat, lng);
+        if (signUpMap && signUpMarker) {
+          signUpMap.setView([lat, lng], 15);
+          signUpMarker.setLatLng([lat, lng]);
+        }
+      },
+      { enableHighAccuracy: true, timeout: 6000 }
+    );
+  } else {
+    alert('Geolocation not supported by your browser.');
+  }
+}
+
+async function handleSignUpSubmit(e) {
+  if (e && e.preventDefault) e.preventDefault();
+
+  const role = document.getElementById('signup-role').value || 'donor';
+  const email = (document.getElementById('signup-email').value || '').trim().toLowerCase();
+  const name = document.getElementById('signup-name').value.trim();
+  const phone = document.getElementById('signup-phone').value.trim();
+  const category = document.getElementById('signup-category').value;
+  const address = document.getElementById('signup-address').value.trim();
+  const lat = parseFloat(document.getElementById('signup-lat').value) || (role === 'ngo' ? 28.6250 : 28.6139);
+  const lng = parseFloat(document.getElementById('signup-lng').value) || (role === 'ngo' ? 77.2180 : 77.2090);
+
+  if (!email || !name) {
+    alert('Please enter your organization name and verified email.');
+    return;
+  }
+
+  const payload = {
+    email,
+    name,
+    role,
+    phone,
+    address,
+    lat,
+    lng,
+    gpsAddress: address || (role === 'donor' ? 'Kitchen Station Tagged' : 'Relief Shelter Station Tagged'),
+    photo: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || email)}`
+  };
+
+  if (role === 'donor') {
+    payload.kitchenType = category;
+    payload.licenseId = (document.getElementById('signup-fssai').value || '').trim() || ('FSSAI-' + Math.floor(10000000000000 + Math.random() * 90000000000000));
+    payload.operatingHours = (document.getElementById('signup-hours').value || '').trim() || '10:00 AM - 11:30 PM';
+    payload.mealsDiverted = 0;
+    payload.carbonOffset = '0 kg CO₂e';
+  } else {
+    const rawDarpan = (document.getElementById('signup-darpan').value || '').trim().toUpperCase();
+    const signatoryVal = (document.getElementById('signup-signatory').value || '').trim();
+    const panVal = (document.getElementById('signup-pan').value || '').trim().toUpperCase();
+
+    payload.shelterType = category;
+    payload.regId = rawDarpan.startsWith('NGO-DARPAN/') ? rawDarpan : `NGO-DARPAN/${rawDarpan}`;
+    payload.darpanId = rawDarpan;
+    payload.authorizedSignatory = signatoryVal || 'Dr. Alok Verma (General Secretary)';
+    payload.panNumber = panVal || 'AAATH2819E';
+    payload.capacity = (document.getElementById('signup-capacity').value || '').trim() || '350 Meals / Day';
+    payload.fleet = (document.getElementById('signup-fleet').value || '').trim() || '4 Delivery Vans, 2 Bikes';
+    payload.section80G = 'Active & Verified (80G(5)(vi))';
+    payload.verifiedDarpan = true;
+    payload.regAuthority = 'NITI Aayog & Registrar of Societies';
+    payload.mealsServed = 0;
+  }
+
+  let registeredUser = null;
+
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        registeredUser = json.data;
+      } else {
+        alert(json.error || 'Failed to complete registration. Please try again.');
+        return;
+      }
+    } catch (err) {
+      console.warn('API register error, saving to local state:', err);
+    }
+  }
+
+  if (!registeredUser) {
+    registeredUser = {
+      ...payload,
+      id: 'usr_' + Date.now(),
+      verified: true,
+      createdAt: new Date().toISOString()
+    };
+    fallbackUsers[email] = registeredUser;
+  }
+
+  // Set authenticated session
+  currentUserProfile = registeredUser;
+  currentRole = currentUserProfile.role;
+  currentEmail = currentUserProfile.email;
+  currentEntity = currentUserProfile.name;
+  if (currentUserProfile.lat) donorLat = currentUserProfile.lat;
+  if (currentUserProfile.lng) donorLng = currentUserProfile.lng;
+
+  // Sound + Confetti Celebration
+  beep(880, 'sine', 0.3);
+  confetti({
+    particleCount: 75,
+    spread: 80,
+    origin: { y: 0.6 },
+    colors: currentRole === 'donor' ? ['#2b5e43', '#4d8966', '#d68936'] : ['#2c5870', '#5b8ba8', '#d68936']
+  });
+
+  // Switch to new dashboard
+  await switchView(currentRole, currentEntity, currentEmail);
+}
+
+/* ==========================================================================
+   4c. NGO Real-Time Surplus Food Notification & Alert System
+   ========================================================================== */
+
+function playFoodAlertChime() {
+  if (!ngoSoundEnabled) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    
+    // Melodic two-tone chime (F5 -> A5)
+    const now = audioCtx.currentTime;
+    
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(698.46, now);
+    gain1.gain.setValueAtTime(0.2, now);
+    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.35);
+
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880.00, now + 0.15);
+    gain2.gain.setValueAtTime(0.28, now + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(now + 0.15);
+    osc2.stop(now + 0.55);
+  } catch (e) {
+    console.warn('Audio chime error:', e);
+  }
+}
+
+function toggleNgoSound() {
+  ngoSoundEnabled = !ngoSoundEnabled;
+  const icon = document.getElementById('sound-toggle-icon');
+  const text = document.getElementById('sound-toggle-text');
+  const btn = document.getElementById('btn-sound-toggle');
+
+  if (icon) {
+    icon.setAttribute('data-lucide', ngoSoundEnabled ? 'volume-2' : 'volume-x');
+    icon.className = `w-3.5 h-3.5 ${ngoSoundEnabled ? 'text-emerald-600' : 'text-slate-400'}`;
+  }
+  if (text) text.textContent = ngoSoundEnabled ? 'Sound: ON' : 'Sound: Muted';
+  if (btn) {
+    btn.className = `flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-xl transition ${
+      ngoSoundEnabled ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-200 text-slate-500'
+    }`;
+  }
+
+  if (ngoSoundEnabled) beep(660, 'sine', 0.15);
+  lucide.createIcons();
+}
+
+// LocalStorage Persistence for Notifications
+function saveNgoNotifications() {
+  try {
+    localStorage.setItem(NGO_NOTIFS_KEY, JSON.stringify(ngoNotifications));
+  } catch (e) {
+    console.warn('Failed to save notifications:', e);
+  }
+}
+
+function loadNgoNotifications() {
+  try {
+    const raw = localStorage.getItem(NGO_NOTIFS_KEY);
+    if (raw) {
+      ngoNotifications = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Failed to load notifications:', e);
+    ngoNotifications = [];
+  }
+}
+
+// Synchronize Notifications with Live Listings Pool
+function syncNgoNotificationsWithListings() {
+  loadNgoNotifications();
+
+  if (listings && listings.length > 0) {
+    const listingsMap = new Map(listings.map(item => [item.id, item]));
+
+    // 1. Sync claimed status for existing notification items
+    ngoNotifications.forEach(n => {
+      const match = listingsMap.get(n.id);
+      if (match && match.claimed) {
+        n.claimed = true;
+      }
+    });
+
+    // 2. Populate notifications for available surplus food if not already present
+    const existingIds = new Set(ngoNotifications.map(n => n.id));
+    const unclaimed = listings.filter(l => !l.claimed);
+
+    unclaimed.forEach(item => {
+      if (!existingIds.has(item.id)) {
+        ngoNotifications.unshift({
+          ...item,
+          alertId: 'alert_' + item.id,
+          receivedAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+          read: false
+        });
+      }
+    });
+  }
+
+  // Cap list to latest 20 alerts
+  ngoNotifications = ngoNotifications.slice(0, 20);
+  saveNgoNotifications();
+  updateNgoBellBadge();
+  renderNgoNotificationsList();
+}
+
+function markNgoNotificationClaimed(id) {
+  let changed = false;
+  ngoNotifications.forEach(n => {
+    if (n.id === id) {
+      n.claimed = true;
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveNgoNotifications();
+    updateNgoBellBadge();
+    renderNgoNotificationsList();
+  }
+}
+
+function removeNgoNotification(id) {
+  ngoNotifications = ngoNotifications.filter(n => n.id !== id);
+  saveNgoNotifications();
+  updateNgoBellBadge();
+  renderNgoNotificationsList();
+}
+
+// Browser Desktop Notification Permission & Controls
+async function requestDesktopNotificationPermission() {
+  if (typeof window.Notification === 'undefined') {
+    alert('Desktop notifications are not supported in this browser.');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    new Notification('Ann Surplus Food Radar', {
+      body: 'Desktop notifications are active. You will receive alerts when surplus food is posted.',
+      icon: 'logo.png'
+    });
+    updateDesktopNotifButton();
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  updateDesktopNotifButton();
+  if (permission === 'granted') {
+    new Notification('Ann Surplus Food Radar', {
+      body: '🔔 Real-time desktop alerts enabled! You will be notified instantly when nearby kitchens post food.',
+      icon: 'logo.png'
+    });
+    beep(660, 'sine', 0.18);
+  }
+}
+
+function updateDesktopNotifButton() {
+  const btn = document.getElementById('btn-desktop-notif-toggle');
+  if (!btn) return;
+  if (typeof window.Notification === 'undefined') {
+    btn.classList.add('hidden');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    btn.innerHTML = `<i data-lucide="bell-check" class="w-3 h-3 text-emerald-600"></i><span class="text-emerald-700 font-bold">Alerts Enabled</span>`;
+  } else {
+    btn.innerHTML = `<i data-lucide="bell" class="w-3 h-3 text-blue-600"></i><span class="text-blue-700 font-bold">Enable Browser Alerts</span>`;
+  }
+  lucide.createIcons();
+}
+
+function showNgoFoodAlert(listing) {
+  if (!listing) return;
+
+  // Add to notifications list
+  const alertItem = {
+    ...listing,
+    alertId: 'alert_' + Date.now() + Math.random().toString(36).substr(2, 4),
+    receivedAt: new Date(),
+    read: false,
+    claimed: Boolean(listing.claimed)
+  };
+
+  // Avoid duplicates in active alert notifications
+  ngoNotifications = [alertItem, ...ngoNotifications.filter(n => n.id !== listing.id)].slice(0, 20);
+  saveNgoNotifications();
+
+  // Update notification badge count & dropdown list
+  updateNgoBellBadge();
+  renderNgoNotificationsList();
+
+  // Browser Desktop Notification if enabled
+  if (typeof window.Notification !== 'undefined' && Notification.permission === 'granted' && !listing.claimed) {
+    try {
+      const deskNotif = new Notification(`🍲 Surplus Food: ${listing.title}`, {
+        body: `${listing.donor || 'Verified Kitchen'} has surplus meals available (${listing.dist || 'Nearby'}). Click to claim for NGO!`,
+        icon: 'logo.png',
+        tag: `ann-alert-${listing.id}`
+      });
+      deskNotif.onclick = () => {
+        window.focus();
+        showNgoFoodAlert(listing);
+        deskNotif.close();
+      };
+    } catch (e) {
+      console.warn('Desktop notification error:', e);
+    }
+  }
+
+  // Hydrate Floating Alert Toast
+  const toast = document.getElementById('ngo-surplus-toast');
+  const toastMedia = document.getElementById('ngo-toast-media');
+  const toastTitle = document.getElementById('ngo-toast-title');
+  const toastDonor = document.getElementById('ngo-toast-donor');
+  const toastDist = document.getElementById('ngo-toast-dist');
+  const toastExpires = document.getElementById('ngo-toast-expires');
+  const claimBtn = document.getElementById('ngo-toast-claim-btn');
+  const mapBtn = document.getElementById('ngo-toast-map-btn');
+
+  if (toast) {
+    if (toastTitle) toastTitle.textContent = listing.title || 'Surplus Meals Ready';
+    if (toastDonor) toastDonor.textContent = listing.donor || 'Verified Kitchen';
+    if (toastDist) toastDist.textContent = listing.dist ? `${listing.dist} away` : 'Nearby Station';
+    if (toastExpires) toastExpires.textContent = listing.expires ? `Expires in ${listing.expires}` : 'Immediate Pickup';
+
+    if (toastMedia) {
+      if (listing.image) {
+        toastMedia.innerHTML = `<img src="${listing.image}" alt="${listing.title}" class="w-full h-full object-cover">`;
+      } else {
+        toastMedia.textContent = listing.icon || '🍲';
+      }
+    }
+
+    if (claimBtn) {
+      claimBtn.onclick = () => claimFoodFromAlert(listing.id);
+    }
+    if (mapBtn) {
+      mapBtn.onclick = () => {
+        dismissNgoAlertToast();
+        openGpsRouteModal(listing.id);
+      };
+    }
+
+    // Play pleasant two-tone chime
+    playFoodAlertChime();
+
+    // Show toast with spring-like appearance
+    toast.classList.remove('hidden');
+    toast.classList.add('flex');
+
+    if (ngoToastTimer) clearTimeout(ngoToastTimer);
+    ngoToastTimer = setTimeout(() => dismissNgoAlertToast(), 14000);
+  }
+
+  lucide.createIcons();
+}
+
+function dismissNgoAlertToast() {
+  const toast = document.getElementById('ngo-surplus-toast');
+  if (toast) {
+    toast.classList.add('hidden');
+    toast.classList.remove('flex');
+  }
+}
+
+async function claimFoodFromAlert(listingId) {
+  dismissNgoAlertToast();
+  await claimFood(listingId);
+  markNgoNotificationClaimed(listingId);
+}
+
+function toggleNgoNotificationsDropdown() {
+  const dropdown = document.getElementById('ngo-notifications-dropdown');
+  if (!dropdown) return;
+
+  const isHidden = dropdown.classList.contains('hidden');
+  if (isHidden) {
+    dropdown.classList.remove('hidden');
+    // Mark notifications as read
+    ngoNotifications.forEach(n => n.read = true);
+    saveNgoNotifications();
+    updateNgoBellBadge();
+    renderNgoNotificationsList();
+    beep(500, 'sine', 0.08);
+  } else {
+    dropdown.classList.add('hidden');
+  }
+  lucide.createIcons();
+}
+
+function updateNgoBellBadge() {
+  const badge = document.getElementById('ngo-bell-count');
+  if (!badge) return;
+
+  const unreadCount = ngoNotifications.filter(n => !n.read && !n.claimed).length;
+  if (unreadCount > 0) {
+    badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+    badge.classList.remove('hidden');
+    badge.classList.add('flex');
+  } else {
+    badge.classList.add('hidden');
+    badge.classList.remove('flex');
+  }
+}
+
+function renderNgoNotificationsList() {
+  const container = document.getElementById('ngo-notifications-list');
+  if (!container) return;
+
+  const activeAlerts = ngoNotifications.filter(n => !n.claimed);
+
+  if (activeAlerts.length === 0) {
+    container.innerHTML = `
+      <div class="p-5 text-center text-slate-400 space-y-1">
+        <i data-lucide="bell-off" class="w-7 h-7 mx-auto text-slate-300"></i>
+        <p class="font-bold text-slate-700 text-xs">No active surplus food alerts</p>
+        <p class="text-[11px] text-slate-400">When nearby kitchens broadcast excess meals, alerts will appear here in real-time.</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = activeAlerts.map(item => `
+    <div class="p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-300 transition flex items-start gap-2.5 group">
+      <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 text-lg shadow-xs">
+        ${item.image ? `<img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover">` : (item.icon || '🍲')}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between">
+          <h5 class="font-bold text-slate-900 text-xs truncate">${item.title}</h5>
+          <span class="text-[10px] text-emerald-700 font-bold shrink-0">${item.dist || '1.2 km'}</span>
+        </div>
+        <p class="text-[11px] text-slate-500 truncate">${item.donor} • Expires in ${item.expires || '2h'}</p>
+        <div class="mt-1.5 flex items-center gap-1.5">
+          <button 
+            onclick="claimFoodFromAlert(${item.id})" 
+            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] py-1 px-2 rounded-md shadow-xs transition"
+          >
+            Claim Pickup
+          </button>
+          <button 
+            onclick="openGpsRouteModal(${item.id})" 
+            class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] py-1 px-2 rounded-md font-semibold transition flex items-center gap-0.5"
+          >
+            <i data-lucide="navigation" class="w-2.5 h-2.5"></i>
+            <span>Route</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  lucide.createIcons();
+}
+
+function clearNgoNotifications() {
+  ngoNotifications = [];
+  saveNgoNotifications();
+  updateNgoBellBadge();
+  renderNgoNotificationsList();
+  beep(400, 'sine', 0.1);
+}
+
+function simulateFoodAlert() {
+  // Grab first available listing or generate fresh demo item
+  let sampleListing = listings.find(i => !i.claimed);
+  if (!sampleListing) {
+    sampleListing = {
+      id: Date.now(),
+      title: '45 Packed Biryani Trays',
+      donor: 'Royal Spice Caterers',
+      dist: '0.9 km',
+      lat: 28.6145,
+      lng: 77.2095,
+      icon: '🍲',
+      expires: '1h 45m',
+      extra: 'Fresh Banquet Surplus',
+      tag: 'Just Listed',
+      tagColor: 'emerald',
+      status: 'Awaiting NGO Claim',
+      claimed: false,
+      createdAt: new Date().toISOString()
+    };
+    listings.unshift(sampleListing);
+    renderNgoCards();
+  }
+
+  showNgoFoodAlert(sampleListing);
+
+  if (gridChannel) {
+    gridChannel.postMessage({ type: 'listing:created', payload: sampleListing });
+  }
 }
 
 // 5. Donor GPS Station & Interactive Maps
@@ -1123,6 +2070,8 @@ async function handleNewFoodSubmit(e) {
     image: selectedFoodPhoto || null
   };
 
+  let createdItem = null;
+
   if (API_BASE) {
     try {
       const res = await fetch(`${API_BASE}/listings`, {
@@ -1132,13 +2081,16 @@ async function handleNewFoodSubmit(e) {
       });
       const result = await res.json();
       if (result.success) {
+        createdItem = result.data;
         await loadListings();
       }
     } catch (err) {
       console.warn('API error, saving locally:', err);
     }
-  } else {
-    listings.unshift({
+  }
+
+  if (!createdItem) {
+    createdItem = {
       id: Date.now(),
       title,
       donor: currentEntity || 'Royal Spice Caterers',
@@ -1153,8 +2105,15 @@ async function handleNewFoodSubmit(e) {
       tagColor: 'emerald',
       status: 'Awaiting NGO Claim',
       claimed: false,
-      extra: 'Ready for Pickup'
-    });
+      extra: 'Ready for Pickup',
+      createdAt: new Date().toISOString()
+    };
+    listings.unshift(createdItem);
+  }
+
+  // Cross-tab real-time alert dispatch
+  if (gridChannel) {
+    gridChannel.postMessage({ type: 'listing:created', payload: createdItem });
   }
 
   renderDonorCards();
@@ -1174,6 +2133,10 @@ async function removeDonorListing(id) {
     }
   }
   listings = listings.filter(i => i.id !== id);
+  removeNgoNotification(id);
+  if (gridChannel) {
+    gridChannel.postMessage({ type: 'listing:deleted', payload: { id } });
+  }
   renderDonorCards();
   beep(280, 'triangle');
 }
@@ -1193,9 +2156,17 @@ async function claimFood(id) {
     } catch (err) {
       console.warn('API claim error:', err);
     }
-  } else {
-    const item = listings.find(i => i.id === id);
-    if (item) item.claimed = true;
+  }
+
+  // Mark in local listings pool
+  const item = listings.find(i => i.id === id);
+  if (item) item.claimed = true;
+
+  // Mark in notification feed
+  markNgoNotificationClaimed(id);
+
+  if (gridChannel) {
+    gridChannel.postMessage({ type: 'listing:claimed', payload: { id, ngo: currentEntity } });
   }
 
   renderNgoCards();
@@ -1242,18 +2213,61 @@ function openTaxReceiptAlert() {
   }
 }
 
-// 10. Event Listeners
+// 10. Event Listeners & Audio Autoplay Unlocking
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeDonationModal();
     closeGoogleAuthModal();
     closeProfileModal();
     closeGpsRouteModal();
+    const dropdown = document.getElementById('ngo-notifications-dropdown');
+    if (dropdown) dropdown.classList.add('hidden');
   }
 });
 
+// Unlock browser Web Audio context on first user interaction gesture
+const unlockAudioOnInteraction = () => {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {}
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+};
+document.addEventListener('click', unlockAudioOnInteraction, { passive: true });
+document.addEventListener('keydown', unlockAudioOnInteraction, { passive: true });
+
+// Close NGO notifications dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('ngo-notifications-dropdown');
+  const bellBtn = document.getElementById('ngo-bell-btn');
+  if (dropdown && !dropdown.classList.contains('hidden')) {
+    if (!dropdown.contains(e.target) && (!bellBtn || !bellBtn.contains(e.target))) {
+      dropdown.classList.add('hidden');
+    }
+  }
+});
+
+// Background resilience polling for eNGO (every 20s)
+setInterval(() => {
+  if (currentRole === 'ngo') {
+    loadListings().then(() => {
+      renderNgoCards();
+      syncNgoNotificationsWithListings();
+    }).catch(() => {});
+  }
+}, 20000);
+
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
-  loadListings();
+  loadListings().then(() => {
+    if (currentRole === 'ngo') {
+      syncNgoNotificationsWithListings();
+      updateDesktopNotifButton();
+    }
+  });
   initSSE();
+  updateDesktopNotifButton();
 });
