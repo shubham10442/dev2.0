@@ -1,6 +1,8 @@
 [
   {
+    "id": "usr_001",
     "email": "chef.royalspice@gmail.com",
+    "password": "password123",
     "name": "Royal Spice Caterers",
     "role": "donor",
     "photo": "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=100&auto=format&fit=crop&q=80",
@@ -14,10 +16,13 @@
     "verified": true,
     "lat": 28.6145,
     "lng": 77.2095,
-    "gpsAddress": "42 Heritage Blvd Kitchen Dock"
+    "gpsAddress": "42 Heritage Blvd Kitchen Dock",
+    "createdAt": "2026-08-28T10:00:00.000Z"
   },
   {
+    "id": "usr_002",
     "email": "contact.hopeshelter@gmail.com",
+    "password": "password123",
     "name": "Hope Shelter Network",
     "role": "ngo",
     "photo": "https://images.unsplash.com/photo-1593113598332-cd288d649433?w=100&auto=format&fit=crop&q=80",
@@ -32,42 +37,47 @@
     "verified": true,
     "lat": 28.625,
     "lng": 77.218,
-    "gpsAddress": "Sector 14 Community Center, Metro Relief"
+    "gpsAddress": "Sector 14 Community Center, Metro Relief",
+    "createdAt": "2026-08-28T11:00:00.000Z"
   },
   {
+    "id": "usr_003",
     "email": "greenbistro.chef@gmail.com",
+    "password": "password123",
     "name": "Green Bistro Kitchen",
     "role": "donor",
-    "photo": "https://api.dicebear.com/7.x/initials/svg?seed=greenbistro.chef%40gmail.com",
-    "phone": "+91 98000 00000",
-    "address": "Central District, City Zone",
-    "verified": true,
-    "createdAt": "2026-08-29T00:17:23.848Z",
+    "photo": "https://api.dicebear.com/7.x/initials/svg?seed=greenbistro",
     "kitchenType": "Restaurant & Catering",
     "licenseId": "FSSAI-39835023966948",
-    "operatingHours": "09:00 AM - 11:00 PM",
-    "mealsDiverted": 0,
-    "carbonOffset": "0 kg CO₂e",
-    "lat": 28.6139,
-    "lng": 77.209,
-    "gpsAddress": "42 Heritage Blvd, Central Sector"
-  },
-  {
-    "email": "21jdme39@gmail.com",
-    "name": "Shubham",
-    "role": "donor",
-    "photo": "https://api.dicebear.com/7.x/initials/svg?seed=21jdme39%40gmail.com",
     "phone": "+91 98000 00000",
     "address": "Central District, City Zone",
-    "verified": true,
-    "createdAt": "2026-08-29T00:18:02.847Z",
-    "kitchenType": "Restaurant & Catering",
-    "licenseId": "FSSAI-20407921146698",
     "operatingHours": "09:00 AM - 11:00 PM",
-    "mealsDiverted": 0,
-    "carbonOffset": "0 kg CO₂e",
+    "mealsDiverted": 120,
+    "carbonOffset": "68.4 kg CO₂e",
+    "verified": true,
+    "lat": 28.6139,
+    "lng": 77.209,
+    "gpsAddress": "42 Heritage Blvd, Central Sector",
+    "createdAt": "2026-08-29T00:17:23.848Z"
+  },
+  {
+    "id": "usr_004",
+    "email": "21jdme39@gmail.com",
+    "password": "password123",
+    "name": "Shubham",
+    "role": "donor",
+    "photo": "https://api.dicebear.com/7.x/initials/svg?seed=shubham",
+    "kitchenType": "Cloud Kitchen",
+    "licenseId": "FSSAI-20407921146698",
+    "phone": "+91 98000 00000",
+    "address": "Sector 14 Metro Hub, City Center",
+    "operatingHours": "09:00 AM - 11:00 PM",
+    "mealsDiverted": 45,
+    "carbonOffset": "25.6 kg CO₂e",
+    "verified": true,
     "lat": 28.625,
     "lng": 77.218,
-    "gpsAddress": "Sector 14 Community Center, Metro Relief"
+    "gpsAddress": "Sector 14 Community Center, Metro Relief",
+    "createdAt": "2026-08-29T00:18:02.847Z"
   }
 ]
