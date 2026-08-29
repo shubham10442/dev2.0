@@ -21,6 +21,80 @@ let routeMap = null;
 const isServerEnv = window.location.protocol.startsWith('http');
 const API_BASE = isServerEnv ? '/api' : null;
 
+// Real-Time Server-Sent Events (SSE) Listener
+function initSSE() {
+  if (!isServerEnv || typeof EventSource === 'undefined') return;
+  try {
+    const sse = new EventSource('/api/events');
+    sse.addEventListener('listing:created', (e) => {
+      beep(587, 'sine', 0.2);
+      loadListings().then(() => {
+        if (currentRole === 'donor') renderDonorCards();
+        else if (currentRole === 'ngo') renderNgoCards();
+        updateImpactStats();
+      });
+    });
+
+    sse.addEventListener('listing:claimed', (e) => {
+      beep(659, 'sine', 0.25);
+      loadListings().then(() => {
+        if (currentRole === 'donor') renderDonorCards();
+        else if (currentRole === 'ngo') renderNgoCards();
+        updateImpactStats();
+      });
+    });
+
+    sse.addEventListener('listing:completed', (e) => {
+      beep(880, 'sine', 0.3);
+      loadListings().then(() => {
+        if (currentRole === 'donor') renderDonorCards();
+        else if (currentRole === 'ngo') renderNgoCards();
+        updateImpactStats();
+      });
+    });
+
+    sse.addEventListener('listing:deleted', (e) => {
+      loadListings().then(() => {
+        if (currentRole === 'donor') renderDonorCards();
+        else if (currentRole === 'ngo') renderNgoCards();
+      });
+    });
+  } catch (err) {
+    console.warn('SSE stream error:', err);
+  }
+}
+
+// Dynamic Impact Stats Hydration
+async function updateImpactStats() {
+  if (!API_BASE) return;
+  try {
+    const email = (currentUserProfile && currentUserProfile.email) || currentEmail || '';
+    const res = await fetch(`${API_BASE}/stats?email=${encodeURIComponent(email)}`);
+    const json = await res.json();
+    if (!json.success || !json.data) return;
+
+    const data = json.data;
+    const mealsEl = document.getElementById('donor-impact-meals');
+    const carbonEl = document.getElementById('donor-impact-carbon');
+    const licenseEl = document.getElementById('donor-impact-license');
+    const bannerDivertedEl = document.getElementById('donor-banner-diverted');
+
+    const userStats = data.userStats;
+    if (userStats) {
+      if (mealsEl) mealsEl.textContent = `${userStats.meals} Meals`;
+      if (carbonEl) carbonEl.textContent = userStats.carbon;
+      if (licenseEl) licenseEl.textContent = userStats.license || 'FSSAI Active';
+      if (bannerDivertedEl) bannerDivertedEl.textContent = `${Math.round(userStats.meals * 0.45).toLocaleString()} kg`;
+    } else {
+      if (mealsEl) mealsEl.textContent = `${data.divertedMeals.toLocaleString()} Meals`;
+      if (carbonEl) carbonEl.textContent = `${data.carbonOffsetKg} kg CO₂e`;
+      if (bannerDivertedEl) bannerDivertedEl.textContent = `${data.divertedKg.toLocaleString()} kg`;
+    }
+  } catch (e) {
+    console.warn('Failed to load stats:', e);
+  }
+}
+
 // Initial Fallback Profiles (for offline / file:// usage)
 const fallbackUsers = {
   'chef.royalspice@gmail.com': {
@@ -381,6 +455,7 @@ async function switchView(role, entityName = '', email = '') {
       if (avatar && currentUserProfile.photo) avatar.src = currentUserProfile.photo;
 
       renderDonorCards();
+      updateImpactStats();
       setTimeout(initDonorMap, 200);
     } else if (role === 'ngo') {
       const bannerName = document.getElementById('ngo-banner-name');
@@ -730,7 +805,16 @@ async function saveProfileChanges(e) {
 async function loadListings(query = '') {
   if (API_BASE) {
     try {
-      const url = query ? `${API_BASE}/listings?q=${encodeURIComponent(query)}` : `${API_BASE}/listings`;
+      let url = `${API_BASE}/listings`;
+      const params = new URLSearchParams();
+      if (query) params.append('q', query);
+      if (donorLat && donorLng) {
+        params.append('lat', donorLat);
+        params.append('lng', donorLng);
+        params.append('sort', 'nearest');
+      }
+      if (params.toString()) url += `?${params.toString()}`;
+
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
@@ -846,9 +930,10 @@ function renderDonorCards() {
               <i data-lucide="navigation" class="w-3 h-3 text-blue-600"></i>
               <span>${item.extra || 'Driver En Route • ETA ~15m'}</span>
             </span>
-            <span class="bg-blue-600 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs">
-              Handover Pending
-            </span>
+            ${item.status === 'Delivered & Distributed'
+              ? `<span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Completed</span>`
+              : `<button onclick="confirmHandover(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs transition flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Confirm Handover</button>`
+            }
           </div>
         </div>
       `).join('');
@@ -1031,6 +1116,7 @@ async function handleNewFoodSubmit(e) {
     title,
     expires: expiry,
     donor: currentEntity || 'Royal Spice Caterers',
+    donorEmail: (currentUserProfile && currentUserProfile.email) || currentEmail || 'chef.royalspice@gmail.com',
     lat: donorLat,
     lng: donorLng,
     gpsAddress: (currentUserProfile && currentUserProfile.address) || 'Verified Kitchen GPS Location',
@@ -1117,8 +1203,43 @@ async function claimFood(id) {
   confetti({ particleCount: 35, spread: 60 });
 }
 
+async function confirmHandover(id) {
+  beep(520);
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/listings/${id}/complete`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        await loadListings();
+        renderDonorCards();
+        updateImpactStats();
+        beep(880);
+        confetti({ particleCount: 40, spread: 60, colors: ['#10B981', '#34D399'] });
+        return;
+      }
+    } catch (e) {
+      console.warn('API error completing handover:', e);
+    }
+  }
+
+  // Local fallback
+  const item = listings.find(l => l.id === id);
+  if (item) {
+    item.status = 'Delivered & Distributed';
+    item.extra = 'Handover Complete • Distributed';
+  }
+  renderDonorCards();
+  beep(880);
+}
+
 function openTaxReceiptAlert() {
-  alert("📄 Section 80G Tax Exemption Certificate downloaded for Royal Spice Caterers.");
+  const email = (currentUserProfile && currentUserProfile.email) || currentEmail || 'chef.royalspice@gmail.com';
+  beep(520);
+  if (API_BASE) {
+    window.open(`${API_BASE}/certificate/80g?email=${encodeURIComponent(email)}`, '_blank');
+  } else {
+    alert("📄 Section 80G Tax Exemption Certificate downloaded for " + ((currentUserProfile && currentUserProfile.name) || 'Royal Spice Caterers') + ".");
+  }
 }
 
 // 10. Event Listeners
@@ -1134,4 +1255,5 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
   loadListings();
+  initSSE();
 });
