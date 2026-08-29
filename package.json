@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "ann-food-redistribution",
   "version": "1.0.0",
   "description": "Ann — Surplus Food Redistribution Platform Backend & Frontend",
@@ -8,9 +8,16 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "nodemailer": "^9.0.6"
   },
-  "keywords": ["food-waste", "redistribution", "ngo", "donor"],
+  "keywords": [
+    "food-waste",
+    "redistribution",
+    "ngo",
+    "donor"
+  ],
   "author": "Ann Dev Team",
   "license": "MIT"
 }
