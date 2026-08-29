@@ -1,0 +1,1137 @@
+/* ==========================================================================
+   Ann — Frontend Client: Auth, Profiles, Listings, GPS & REST API
+   ========================================================================== */
+
+// 1. State Management
+let currentRole = null;
+let currentEntity = '';
+let currentEmail = '';
+let currentUserProfile = null;
+let audioCtx = null;
+let listings = [];
+
+// GPS Coordinates & Map Instances
+let donorLat = 28.6139;
+let donorLng = 77.2090;
+let donorMap = null;
+let donorMarker = null;
+let donorCircle = null;
+let routeMap = null;
+
+const isServerEnv = window.location.protocol.startsWith('http');
+const API_BASE = isServerEnv ? '/api' : null;
+
+// Initial Fallback Profiles (for offline / file:// usage)
+const fallbackUsers = {
+  'chef.royalspice@gmail.com': {
+    email: 'chef.royalspice@gmail.com',
+    name: 'Royal Spice Caterers',
+    role: 'donor',
+    photo: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=100&auto=format&fit=crop&q=80',
+    kitchenType: 'Banquets & Commercial Kitchen',
+    licenseId: 'FSSAI-10019022008432',
+    phone: '+91 98765 43210',
+    address: '42 Heritage Boulevard, Downtown Commercial Zone',
+    operatingHours: '10:00 AM - 11:30 PM',
+    mealsDiverted: 620,
+    carbonOffset: '355.8 kg CO₂e',
+    lat: 28.6139,
+    lng: 77.2090,
+    gpsAddress: '42 Heritage Blvd, Central Sector',
+    verified: true
+  },
+  'contact.hopeshelter@gmail.com': {
+    email: 'contact.hopeshelter@gmail.com',
+    name: 'Hope Shelter Network',
+    role: 'ngo',
+    photo: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=100&auto=format&fit=crop&q=80',
+    shelterType: 'Community Relief & Orphanage Care',
+    regId: 'NGO-DARPAN/DL/2019/0248819',
+    phone: '+91 98123 45678',
+    address: 'Sector 14 Community Center, Metro Relief District',
+    capacity: '350 Meals / Day',
+    fleet: '4 Delivery Vans, 2 Electric Bikes',
+    section80G: 'Active & Verified',
+    mealsServed: 1850,
+    lat: 28.6250,
+    lng: 77.2180,
+    gpsAddress: 'Sector 14 Community Center, Metro Relief',
+    verified: true
+  }
+};
+
+// Initial Fallback Listings
+const fallbackListings = [
+  { id: 1, title: '30 Servings Veg Thali', donor: 'Royal Spice Caterers', dist: '1.2 km', lat: 28.6139, lng: 77.2090, icon: '🍲', expires: '1h 20m', tag: '⚡ Urgent (<2h)', tagColor: 'amber', status: 'Driver En Route', claimed: true, extra: 'Driver: Mark R. • ETA 12m' },
+  { id: 2, title: '15 Packed Rice Bowls', donor: 'Green Earth Bistro', dist: '0.8 km', lat: 28.6190, lng: 77.2130, icon: '🍱', expires: '2h 45m', tag: 'Fresh Pack', tagColor: 'emerald', status: 'Awaiting NGO Claim', claimed: false, extra: 'Listed 20m ago' },
+  { id: 3, title: '25 Sourdough Loaves', donor: 'Golden Crust Bakery', dist: '2.4 km', lat: 28.6280, lng: 77.2250, icon: '🥖', expires: '6h 10m', tag: 'Artisan Bakery', tagColor: 'purple', status: 'Awaiting NGO Claim', claimed: false, extra: 'Ready for pickup' },
+  { id: 4, title: '40 Sandwich Boxes', donor: 'TechHub Conference', dist: '1.8 km', lat: 28.6080, lng: 77.2010, icon: '🥪', expires: '1h 45m', tag: 'Assorted Wraps', tagColor: 'emerald', status: 'Awaiting NGO Claim', claimed: false, extra: 'Refrigerated' }
+];
+
+// 2. Web Audio Helper
+function beep(freq = 520, type = 'sine', duration = 0.15) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (e) {}
+}
+
+// 3. Google Authentication & Gmail OTP Handlers
+let pendingAuthUser = null;
+let activeOtp = '';
+let resendTimerInterval = null;
+
+function openGoogleAuthModal() {
+  beep(480);
+  backToEmailStep();
+  const modal = document.getElementById('google-auth-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeGoogleAuthModal() {
+  const modal = document.getElementById('google-auth-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  if (resendTimerInterval) clearInterval(resendTimerInterval);
+}
+
+function backToEmailStep() {
+  document.getElementById('auth-step-email').classList.remove('hidden');
+  document.getElementById('auth-step-otp').classList.add('hidden');
+  const errorMsg = document.getElementById('otp-error-msg');
+  if (errorMsg) errorMsg.classList.add('hidden');
+  if (resendTimerInterval) clearInterval(resendTimerInterval);
+}
+
+async function selectGoogleAccount(email, name, role) {
+  pendingAuthUser = {
+    email,
+    name,
+    role,
+    photo: role === 'donor'
+      ? 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=100&auto=format&fit=crop&q=80'
+      : 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=100&auto=format&fit=crop&q=80'
+  };
+  await requestGmailOtp(email);
+}
+
+async function handleCustomGoogleAuth(e) {
+  e.preventDefault();
+  const email = document.getElementById('google-custom-email').value.trim();
+  const role = document.querySelector('input[name="custom-role"]:checked').value;
+  const name = email.split('@')[0].replace('.', ' ').toUpperCase();
+
+  pendingAuthUser = {
+    email,
+    name,
+    role,
+    photo: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(email)}`
+  };
+  await requestGmailOtp(email);
+}
+
+async function requestGmailOtp(email) {
+  beep(520);
+  activeOtp = '';
+
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (data.success && data.previewOtp) {
+        activeOtp = data.previewOtp;
+      }
+    } catch (err) {
+      console.warn('API send-otp error, using offline fallback code:', err);
+    }
+  }
+
+  if (!activeOtp) {
+    activeOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  // Switch to OTP Step UI
+  document.getElementById('auth-step-email').classList.add('hidden');
+  document.getElementById('auth-step-otp').classList.remove('hidden');
+  document.getElementById('otp-target-email').textContent = email;
+  document.getElementById('otp-input').value = '';
+  document.getElementById('otp-error-msg').classList.add('hidden');
+
+  // Update Quick Fill helper
+  const quickFillText = document.getElementById('quick-fill-text');
+  if (quickFillText) quickFillText.textContent = `Click to Auto-Fill Received OTP: ${activeOtp}`;
+
+  // Trigger simulated Gmail Toast
+  showGmailToast(activeOtp, email);
+
+  // Start Resend Timer (30s)
+  startResendTimer();
+  document.getElementById('otp-input').focus();
+  lucide.createIcons();
+}
+
+function showGmailToast(otp, email) {
+  const toast = document.getElementById('gmail-toast');
+  const toastCode = document.getElementById('toast-otp-code');
+  if (!toast || !toastCode) return;
+
+  toastCode.textContent = otp;
+  toast.classList.remove('hidden');
+  toast.classList.add('flex');
+  beep(880, 'sine', 0.2);
+
+  // Auto-dismiss after 15 seconds
+  setTimeout(() => dismissGmailToast(), 15000);
+}
+
+function dismissGmailToast() {
+  const toast = document.getElementById('gmail-toast');
+  if (toast) {
+    toast.classList.add('hidden');
+    toast.classList.remove('flex');
+  }
+}
+
+function startResendTimer() {
+  let seconds = 30;
+  const timerDisplay = document.getElementById('otp-timer-display');
+  const timerSeconds = document.getElementById('otp-timer-seconds');
+  const resendBtn = document.getElementById('btn-resend-otp');
+
+  if (resendTimerInterval) clearInterval(resendTimerInterval);
+
+  timerDisplay.classList.remove('hidden');
+  resendBtn.classList.add('hidden');
+  timerSeconds.textContent = seconds;
+
+  resendTimerInterval = setInterval(() => {
+    seconds--;
+    if (seconds > 0) {
+      timerSeconds.textContent = seconds;
+    } else {
+      clearInterval(resendTimerInterval);
+      timerDisplay.classList.add('hidden');
+      resendBtn.classList.remove('hidden');
+    }
+  }, 1000);
+}
+
+async function resendOtp() {
+  if (!pendingAuthUser) return;
+  await requestGmailOtp(pendingAuthUser.email);
+}
+
+function quickFillOtp() {
+  const otpInput = document.getElementById('otp-input');
+  if (otpInput && activeOtp) {
+    otpInput.value = activeOtp;
+    handleOtpSubmit(new Event('submit'));
+  }
+}
+
+async function handleOtpSubmit(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  if (!pendingAuthUser) return;
+
+  const enteredOtp = document.getElementById('otp-input').value.trim();
+  const errorMsg = document.getElementById('otp-error-msg');
+
+  if (enteredOtp.length !== 6) {
+    errorMsg.textContent = 'Please enter the full 6-digit code.';
+    errorMsg.classList.remove('hidden');
+    beep(250, 'sawtooth');
+    return;
+  }
+
+  let verifiedUser = null;
+
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: pendingAuthUser.email,
+          otp: enteredOtp,
+          role: pendingAuthUser.role,
+          name: pendingAuthUser.name,
+          photo: pendingAuthUser.photo
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        verifiedUser = data.data;
+      } else {
+        errorMsg.textContent = data.error || 'Invalid OTP code. Please try again.';
+        errorMsg.classList.remove('hidden');
+        beep(220, 'sawtooth');
+        return;
+      }
+    } catch (err) {
+      console.warn('API verify-otp error, verifying against local active OTP:', err);
+    }
+  }
+
+  // Local/Offline verification fallback
+  if (!verifiedUser) {
+    if (enteredOtp === activeOtp) {
+      verifiedUser = fallbackUsers[pendingAuthUser.email] || {
+        email: pendingAuthUser.email,
+        name: pendingAuthUser.name || 'Ann Partner',
+        role: pendingAuthUser.role || 'donor',
+        photo: pendingAuthUser.photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(pendingAuthUser.email)}`,
+        phone: '+91 98000 00000',
+        address: 'Central District, City Zone',
+        kitchenType: 'Commercial Kitchen',
+        licenseId: 'FSSAI-10019022008432',
+        shelterType: 'Community Center',
+        regId: 'NGO-REG/448291',
+        capacity: '250 Meals/Day',
+        fleet: '2 Vans',
+        operatingHours: '09:00 AM - 10:00 PM',
+        lat: 28.6139,
+        lng: 77.2090,
+        gpsAddress: 'Central District Station',
+        verified: true
+      };
+    } else {
+      errorMsg.textContent = 'Invalid verification code. Please check your Gmail notification.';
+      errorMsg.classList.remove('hidden');
+      beep(220, 'sawtooth');
+      return;
+    }
+  }
+
+  // Verification successful!
+  currentUserProfile = verifiedUser;
+  currentRole = currentUserProfile.role;
+  currentEmail = currentUserProfile.email;
+  currentEntity = currentUserProfile.name;
+
+  if (currentUserProfile.lat) donorLat = parseFloat(currentUserProfile.lat);
+  if (currentUserProfile.lng) donorLng = parseFloat(currentUserProfile.lng);
+
+  dismissGmailToast();
+  closeGoogleAuthModal();
+
+  await switchView(currentRole, currentEntity, currentEmail);
+
+  beep(role === 'donor' ? 523 : 659);
+  confetti({
+    particleCount: 50,
+    spread: 70,
+    colors: currentRole === 'donor' ? ['#10B981', '#34D399'] : ['#3B82F6', '#60A5FA']
+  });
+}
+
+function loginAs(role, entityName, email) {
+  openGoogleAuthModal();
+  selectGoogleAccount(email || (role === 'donor' ? 'chef.royalspice@gmail.com' : 'contact.hopeshelter@gmail.com'), entityName, role);
+}
+
+function logout() {
+  beep(350, 'triangle');
+  currentRole = null;
+  currentEmail = '';
+  currentUserProfile = null;
+  switchView('login');
+}
+
+// 4. View Routing & Header Hydration
+async function switchView(role, entityName = '', email = '') {
+  ['login', 'donor', 'ngo'].forEach(v => {
+    const el = document.getElementById(`view-${v}`);
+    if (el) {
+      el.classList.toggle('hidden', v !== role);
+      if (v === role && v !== 'login') el.classList.add('flex');
+      else el.classList.remove('flex');
+    }
+  });
+
+  if (role === 'login') return;
+
+  await loadListings();
+
+  // Hydrate Profile in Navigation & Badges
+  if (currentUserProfile) {
+    if (role === 'donor') {
+      const bannerName = document.getElementById('donor-banner-name');
+      const profileName = document.getElementById('donor-profile-name');
+      const btnName = document.getElementById('donor-nav-btn-name');
+      const avatar = document.getElementById('donor-nav-avatar');
+
+      if (bannerName) bannerName.textContent = currentUserProfile.name;
+      if (profileName) profileName.textContent = `${currentUserProfile.name} • Verified Kitchen`;
+      if (btnName) btnName.textContent = currentUserProfile.name.split(' ')[0] || 'Profile';
+      if (avatar && currentUserProfile.photo) avatar.src = currentUserProfile.photo;
+
+      renderDonorCards();
+      setTimeout(initDonorMap, 200);
+    } else if (role === 'ngo') {
+      const bannerName = document.getElementById('ngo-banner-name');
+      const profileName = document.getElementById('ngo-profile-name');
+      const btnName = document.getElementById('ngo-nav-btn-name');
+      const avatar = document.getElementById('ngo-nav-avatar');
+
+      if (bannerName) bannerName.textContent = currentUserProfile.name;
+      if (profileName) profileName.textContent = `${currentUserProfile.name} • Verified Relief NGO`;
+      if (btnName) btnName.textContent = currentUserProfile.name.split(' ')[0] || 'Profile';
+      if (avatar && currentUserProfile.photo) avatar.src = currentUserProfile.photo;
+
+      renderNgoCards();
+    }
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  lucide.createIcons();
+}
+
+// 5. Donor GPS Station & Interactive Maps
+function initDonorMap() {
+  const mapContainer = document.getElementById('donor-map');
+  if (!mapContainer || typeof L === 'undefined') return;
+
+  if (!donorMap) {
+    donorMap = L.map('donor-map', { zoomControl: false }).setView([donorLat, donorLng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(donorMap);
+
+    // Custom Kitchen Pin Marker
+    donorMarker = L.circleMarker([donorLat, donorLng], {
+      radius: 8,
+      fillColor: '#10B981',
+      color: '#FFFFFF',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.95
+    }).addTo(donorMap);
+    donorMarker.bindPopup(`<b>${currentEntity || 'Kitchen Donor'}</b><br>Surplus Station`).openPopup();
+
+    // 5 km Broadcast Radius Ring
+    donorCircle = L.circle([donorLat, donorLng], {
+      radius: 5000,
+      color: '#10B981',
+      weight: 1.5,
+      dashArray: '4, 6',
+      fillColor: '#10B981',
+      fillOpacity: 0.08
+    }).addTo(donorMap);
+  } else {
+    donorMap.invalidateSize();
+    donorMap.setView([donorLat, donorLng], 13);
+    if (donorMarker) donorMarker.setLatLng([donorLat, donorLng]);
+    if (donorCircle) donorCircle.setLatLng([donorLat, donorLng]);
+  }
+
+  updateGpsDisplays();
+}
+
+function updateGpsDisplays() {
+  const coordsStr = `${donorLat.toFixed(4)}° N, ${donorLng.toFixed(4)}° E`;
+  const coordsEl = document.getElementById('donor-gps-coords');
+  const modalGpsEl = document.getElementById('modal-gps-display');
+  const gmapsLink = document.getElementById('donor-gmaps-link');
+  const addrEl = document.getElementById('donor-gps-addr');
+
+  if (coordsEl) coordsEl.textContent = coordsStr;
+  if (modalGpsEl) modalGpsEl.textContent = coordsStr;
+  if (gmapsLink) gmapsLink.href = `https://maps.google.com/?q=${donorLat},${donorLng}`;
+  if (addrEl && currentUserProfile && currentUserProfile.address) {
+    addrEl.textContent = currentUserProfile.address;
+    addrEl.title = currentUserProfile.address;
+  }
+}
+
+function detectDonorGps(forModal = false) {
+  beep(480);
+  const statusBadge = document.getElementById('donor-gps-status');
+  if (statusBadge) {
+    statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-spin"></span> Acquiring GPS...`;
+  }
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        donorLat = pos.coords.latitude;
+        donorLng = pos.coords.longitude;
+
+        if (statusBadge) {
+          statusBadge.className = "inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full";
+          statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live GPS Active`;
+        }
+
+        updateGpsDisplays();
+        if (donorMap) {
+          donorMap.setView([donorLat, donorLng], 14);
+          if (donorMarker) donorMarker.setLatLng([donorLat, donorLng]);
+          if (donorCircle) donorCircle.setLatLng([donorLat, donorLng]);
+        }
+
+        // Save updated coordinates to user profile
+        if (currentUserProfile) {
+          currentUserProfile.lat = donorLat;
+          currentUserProfile.lng = donorLng;
+          if (API_BASE) {
+            try {
+              await fetch(`${API_BASE}/profile`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: currentUserProfile.email, lat: donorLat, lng: donorLng })
+              });
+            } catch (e) {}
+          }
+        }
+
+        beep(660);
+        confetti({ particleCount: 25, spread: 45 });
+      },
+      (err) => {
+        console.warn('Geolocation warning/denied, using calibrated GPS station:', err);
+        if (statusBadge) {
+          statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> GPS Calibrated`;
+        }
+        updateGpsDisplays();
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  } else {
+    updateGpsDisplays();
+  }
+}
+
+// 6. NGO GPS Route & Navigation Modal
+function openGpsRouteModal(listingId) {
+  beep(480);
+  const item = listings.find(l => l.id === listingId);
+  if (!item) return;
+
+  const targetLat = item.lat || 28.6139;
+  const targetLng = item.lng || 77.2090;
+  const ngoLat = 28.6250;
+  const ngoLng = 77.2180;
+
+  // Hydrate text fields
+  document.getElementById('route-modal-title').textContent = `${item.title} • Route`;
+  document.getElementById('route-modal-subtitle').textContent = `Pickup from: ${item.donor || 'Verified Donor'}`;
+  document.getElementById('route-coords').textContent = `${targetLat.toFixed(4)}° N, ${targetLng.toFixed(4)}° E`;
+  document.getElementById('route-address').textContent = item.gpsAddress || item.donor || 'Kitchen Location';
+  document.getElementById('route-distance').textContent = item.dist || '1.4 km';
+  document.getElementById('route-gmaps-btn').href = `https://www.google.com/maps/dir/?api=1&origin=${ngoLat},${ngoLng}&destination=${targetLat},${targetLng}`;
+
+  const modal = document.getElementById('gps-route-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  lucide.createIcons();
+
+  // Initialize or re-center Route Map
+  setTimeout(() => {
+    if (typeof L === 'undefined') return;
+
+    if (!routeMap) {
+      routeMap = L.map('route-map', { zoomControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(routeMap);
+    }
+
+    routeMap.eachLayer(layer => {
+      if (layer instanceof L.Marker || layer instanceof L.Polyline || layer instanceof L.CircleMarker) {
+        routeMap.removeLayer(layer);
+      }
+    });
+
+    // NGO Shelter Pin (Blue)
+    const ngoMarker = L.circleMarker([ngoLat, ngoLng], {
+      radius: 9,
+      fillColor: '#2563EB',
+      color: '#FFFFFF',
+      weight: 2,
+      fillOpacity: 0.95
+    }).addTo(routeMap).bindPopup(`<b>Hope Shelter Hub</b><br>Dispatch Center`);
+
+    // Donor Kitchen Pin (Green)
+    const donorPin = L.circleMarker([targetLat, targetLng], {
+      radius: 9,
+      fillColor: '#10B981',
+      color: '#FFFFFF',
+      weight: 2,
+      fillOpacity: 0.95
+    }).addTo(routeMap).bindPopup(`<b>${item.donor}</b><br>${item.title}`).openPopup();
+
+    // Turn-by-Turn Simulated Polyline Route
+    const routeLine = L.polyline([
+      [ngoLat, ngoLng],
+      [(ngoLat + targetLat) / 2 + 0.002, (ngoLng + targetLng) / 2 - 0.001],
+      [targetLat, targetLng]
+    ], {
+      color: '#2563EB',
+      weight: 4,
+      dashArray: '6, 8',
+      opacity: 0.8
+    }).addTo(routeMap);
+
+    routeMap.invalidateSize();
+    routeMap.fitBounds(L.featureGroup([ngoMarker, donorPin, routeLine]).getBounds().pad(0.2));
+  }, 200);
+}
+
+function closeGpsRouteModal() {
+  const modal = document.getElementById('gps-route-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+// 7. Profile Management Modal
+function openProfileModal() {
+  if (!currentUserProfile) return;
+  beep(450);
+
+  const modal = document.getElementById('profile-modal');
+  const avatar = document.getElementById('profile-modal-avatar');
+  const nameEl = document.getElementById('profile-modal-name');
+  const emailEl = document.getElementById('profile-modal-email');
+  const roleBadge = document.getElementById('profile-modal-role-badge');
+  const typeLabel = document.getElementById('profile-type-label');
+  const licenseLabel = document.getElementById('profile-license-label');
+  const extraFields = document.getElementById('profile-extra-fields');
+
+  avatar.src = currentUserProfile.photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUserProfile.email)}`;
+  nameEl.textContent = currentUserProfile.name;
+  emailEl.textContent = currentUserProfile.email;
+
+  if (currentUserProfile.role === 'donor') {
+    roleBadge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+    roleBadge.textContent = 'Food Donor';
+    typeLabel.textContent = 'Kitchen / Food Category';
+    licenseLabel.textContent = 'FSSAI Food License ID';
+
+    extraFields.innerHTML = `
+      <div class="flex justify-between py-1 border-b border-slate-200">
+        <span class="text-slate-500">Operating Hours:</span>
+        <strong class="text-slate-800">${currentUserProfile.operatingHours || '10:00 AM - 11:30 PM'}</strong>
+      </div>
+      <div class="flex justify-between py-1 border-b border-slate-200">
+        <span class="text-slate-500">GPS Station Lock:</span>
+        <strong class="font-mono text-emerald-700 font-bold">${donorLat.toFixed(4)}° N, ${donorLng.toFixed(4)}° E</strong>
+      </div>
+      <div class="flex justify-between py-1">
+        <span class="text-slate-500">Surplus Diverted:</span>
+        <strong class="text-emerald-700">${currentUserProfile.mealsDiverted || 620} Meals (${currentUserProfile.carbonOffset || '355.8 kg CO₂e'})</strong>
+      </div>
+    `;
+  } else {
+    roleBadge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-800';
+    roleBadge.textContent = 'NGO Relief Shelter';
+    typeLabel.textContent = 'Shelter / Relief Type';
+    licenseLabel.textContent = 'NGO Darpan / Registration ID';
+
+    extraFields.innerHTML = `
+      <div class="flex justify-between py-1 border-b border-slate-200">
+        <span class="text-slate-500">Daily Feeding Capacity:</span>
+        <strong class="text-slate-800">${currentUserProfile.capacity || '350 Meals / Day'}</strong>
+      </div>
+      <div class="flex justify-between py-1 border-b border-slate-200">
+        <span class="text-slate-500">Delivery Fleet:</span>
+        <strong class="text-slate-800">${currentUserProfile.fleet || '4 Delivery Vans'}</strong>
+      </div>
+      <div class="flex justify-between py-1">
+        <span class="text-slate-500">80G Exemption Status:</span>
+        <strong class="text-emerald-700">${currentUserProfile.section80G || 'Verified Active'}</strong>
+      </div>
+    `;
+  }
+
+  document.getElementById('profile-input-name').value = currentUserProfile.name || '';
+  document.getElementById('profile-input-phone').value = currentUserProfile.phone || '';
+  document.getElementById('profile-input-type').value = (currentUserProfile.role === 'donor' ? currentUserProfile.kitchenType : currentUserProfile.shelterType) || '';
+  document.getElementById('profile-input-license').value = (currentUserProfile.role === 'donor' ? currentUserProfile.licenseId : currentUserProfile.regId) || '';
+  document.getElementById('profile-input-address').value = currentUserProfile.address || '';
+
+  document.getElementById('profile-status-msg').classList.add('hidden');
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  lucide.createIcons();
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById('profile-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function saveProfileChanges(e) {
+  e.preventDefault();
+  if (!currentUserProfile) return;
+
+  const updatedData = {
+    email: currentUserProfile.email,
+    name: document.getElementById('profile-input-name').value.trim(),
+    phone: document.getElementById('profile-input-phone').value.trim(),
+    address: document.getElementById('profile-input-address').value.trim(),
+    lat: donorLat,
+    lng: donorLng
+  };
+
+  if (currentUserProfile.role === 'donor') {
+    updatedData.kitchenType = document.getElementById('profile-input-type').value.trim();
+    updatedData.licenseId = document.getElementById('profile-input-license').value.trim();
+  } else {
+    updatedData.shelterType = document.getElementById('profile-input-type').value.trim();
+    updatedData.regId = document.getElementById('profile-input-license').value.trim();
+  }
+
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentUserProfile = data.data;
+      }
+    } catch (err) {
+      console.warn('API error saving profile, updating locally:', err);
+    }
+  }
+
+  Object.assign(currentUserProfile, updatedData);
+  currentEntity = currentUserProfile.name;
+
+  await switchView(currentUserProfile.role, currentUserProfile.name, currentUserProfile.email);
+
+  beep(600);
+  const statusMsg = document.getElementById('profile-status-msg');
+  statusMsg.classList.remove('hidden');
+  setTimeout(() => statusMsg.classList.add('hidden'), 3000);
+}
+
+// 8. Listings Data & Renderers
+async function loadListings(query = '') {
+  if (API_BASE) {
+    try {
+      const url = query ? `${API_BASE}/listings?q=${encodeURIComponent(query)}` : `${API_BASE}/listings`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        listings = data.data;
+        return listings;
+      }
+    } catch (err) {
+      console.warn('Backend API unavailable, using local memory cache:', err);
+    }
+  }
+
+  if (listings.length === 0) listings = [...fallbackListings];
+  if (query) {
+    const q = query.toLowerCase().trim();
+    return listings.filter(i => i.title.toLowerCase().includes(q) || (i.donor && i.donor.toLowerCase().includes(q)));
+  }
+  return listings;
+}
+
+function renderDonorCards() {
+  const activeContainer = document.getElementById('donor-listings-container');
+  const claimedContainer = document.getElementById('donor-claimed-container');
+  if (!activeContainer && !claimedContainer) return;
+
+  const availableListings = listings.filter(item => !item.claimed);
+  const claimedListings = listings.filter(item => item.claimed);
+
+  const activeBadge = document.getElementById('donor-listing-badge');
+  if (activeBadge) activeBadge.textContent = `${availableListings.length} Available`;
+
+  const claimedBadge = document.getElementById('donor-claimed-badge');
+  if (claimedBadge) claimedBadge.textContent = `${claimedListings.length} Claimed`;
+
+  // 1. Render Available Surplus Listings
+  if (activeContainer) {
+    if (availableListings.length === 0) {
+      activeContainer.innerHTML = `
+        <div class="col-span-full p-6 text-center rounded-2xl bg-white/80 border border-slate-200 shadow-xs">
+          <i data-lucide="package-open" class="w-8 h-8 mx-auto mb-2 text-emerald-400"></i>
+          <p class="text-xs font-bold text-slate-700">No active surplus waiting for claim</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Click "+ List Surplus Food" to broadcast excess meals to nearby shelters.</p>
+        </div>
+      `;
+    } else {
+      activeContainer.innerHTML = availableListings.map(item => `
+        <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-emerald-500 flex flex-col justify-between hover:shadow-md transition">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">${item.tag || 'Available'}</span>
+              <span class="text-xs font-semibold text-emerald-700">Awaiting NGO Claim</span>
+            </div>
+            <div class="flex items-start gap-3 mb-1">
+              ${item.image 
+                ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
+                : `<div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">${item.icon || '🍲'}</div>`
+              }
+              <div class="min-w-0 flex-1">
+                <h4 class="font-bold text-slate-900 text-base leading-tight">${item.title}</h4>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
+                  <span>Expires: ${item.expires}</span>
+                  <span class="text-slate-300">•</span>
+                  <span class="text-emerald-700 font-mono text-[11px] font-semibold">📍 GPS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 text-xs text-slate-500">
+            <span class="text-emerald-700 font-medium">● Ready for Pickup</span>
+            <button onclick="removeDonorListing(${item.id})" class="text-xs text-red-500 hover:text-red-700 font-semibold transition">Cancel Listing</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // 2. Render Claimed Food by NGOs
+  if (claimedContainer) {
+    if (claimedListings.length === 0) {
+      claimedContainer.innerHTML = `
+        <div class="col-span-full p-6 text-center rounded-2xl bg-white/80 border border-slate-200 shadow-xs">
+          <i data-lucide="truck" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+          <p class="text-xs font-bold text-slate-700">No items currently claimed</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">When an NGO claims your surplus food, it will automatically move here with live dispatch status.</p>
+        </div>
+      `;
+    } else {
+      claimedContainer.innerHTML = claimedListings.map(item => `
+        <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-blue-500 flex flex-col justify-between bg-blue-50/20 hover:shadow-md transition">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 px-2 py-0.5 rounded flex items-center gap-1">
+                <i data-lucide="check-circle-2" class="w-3 h-3 text-blue-600"></i> Claimed
+              </span>
+              <span class="text-xs font-bold text-blue-700">${item.status || 'Driver Dispatched'}</span>
+            </div>
+            <div class="flex items-start gap-3 mb-1">
+              ${item.image 
+                ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
+                : `<div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">${item.icon || '🍲'}</div>`
+              }
+              <div class="min-w-0 flex-1">
+                <h4 class="font-bold text-slate-900 text-base leading-tight">${item.title}</h4>
+                <p class="text-xs text-slate-600 mt-0.5 font-medium flex items-center gap-1">
+                  <i data-lucide="heart-handshake" class="w-3.5 h-3.5 text-blue-500 shrink-0"></i>
+                  <span>Claimed by: <strong class="text-slate-900">${item.claimedBy || 'Verified NGO'}</strong></span>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/80 text-xs">
+            <span class="text-blue-900 font-semibold flex items-center gap-1">
+              <i data-lucide="navigation" class="w-3 h-3 text-blue-600"></i>
+              <span>${item.extra || 'Driver En Route • ETA ~15m'}</span>
+            </span>
+            <span class="bg-blue-600 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-xs">
+              Handover Pending
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  lucide.createIcons();
+}
+
+async function renderNgoCards(query = '') {
+  const container = document.getElementById('ngo-cards-container');
+  if (!container) return;
+
+  const items = await loadListings(query);
+
+  container.innerHTML = items.map(item => `
+    <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-${item.tagColor || 'blue'}-500 flex flex-col justify-between">
+      <div class="flex items-start gap-3 mb-3">
+        ${item.image 
+          ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
+          : `<div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl shrink-0">${item.icon || '🍲'}</div>`
+        }
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-1">
+            <span class="text-[10px] font-bold uppercase bg-${item.tagColor || 'blue'}-100 text-${item.tagColor || 'blue'}-800 px-2 py-0.5 rounded truncate">${item.tag || 'Surplus'}</span>
+            <button onclick="openGpsRouteModal(${item.id})" class="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-0.5 rounded-md transition" title="View GPS Route on Map">
+              <i data-lucide="navigation" class="w-3 h-3 text-blue-500"></i>
+              <span>GPS Route</span>
+            </button>
+          </div>
+          <h4 class="font-bold text-slate-900 text-sm sm:text-base mt-1 truncate">${item.title}</h4>
+          <p class="text-xs text-slate-500 flex items-center gap-1 truncate">
+            <i data-lucide="map-pin" class="w-3 h-3 text-emerald-600 shrink-0"></i>
+            <span>${item.donor || 'Kitchen Donor'} • ${item.dist || '1.2 km'}</span>
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center justify-between pt-3 mt-2 border-t border-slate-100 text-xs">
+        <span class="text-slate-500 font-medium">Expires: ${item.expires}</span>
+        ${item.claimed 
+          ? `<span class="bg-slate-800 text-emerald-300 font-bold px-3 py-1.5 rounded-xl">Claimed ✓</span>` 
+          : `<button onclick="claimFood(${item.id})" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow transition">Claim for NGO</button>`
+        }
+      </div>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+// 9. Surplus Donation Modal & Actions with Custom Time Selection
+let currentTimeMode = 'preset';
+
+function setTimeMode(mode) {
+  currentTimeMode = mode;
+  beep(480);
+
+  const btnPreset = document.getElementById('btn-mode-preset');
+  const btnDuration = document.getElementById('btn-mode-duration');
+  const btnSpecific = document.getElementById('btn-mode-specific');
+
+  const activeClasses = ['bg-white', 'text-emerald-700', 'shadow-xs', 'font-bold'];
+  const inactiveClasses = ['text-slate-600', 'font-normal'];
+
+  [btnPreset, btnDuration, btnSpecific].forEach(btn => {
+    btn.classList.remove(...activeClasses);
+    btn.classList.add(...inactiveClasses);
+  });
+
+  const activeBtn = mode === 'preset' ? btnPreset : (mode === 'duration' ? btnDuration : btnSpecific);
+  activeBtn.classList.remove(...inactiveClasses);
+  activeBtn.classList.add(...activeClasses);
+
+  document.getElementById('time-preset-container').classList.toggle('hidden', mode !== 'preset');
+  document.getElementById('time-duration-container').classList.toggle('hidden', mode !== 'duration');
+  document.getElementById('time-specific-container').classList.toggle('hidden', mode !== 'specific');
+}
+
+function getSelectedExpiryTime() {
+  if (currentTimeMode === 'duration') {
+    const hours = parseInt(document.getElementById('custom-duration-hours').value || '0', 10);
+    const mins = parseInt(document.getElementById('custom-duration-mins').value || '0', 10);
+    if (hours === 0 && mins === 0) return '1h 00m';
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+    if (hours > 0) return `${hours} Hour${hours > 1 ? 's' : ''}`;
+    return `${mins} Mins`;
+  } else if (currentTimeMode === 'specific') {
+    const timeVal = document.getElementById('custom-exact-time').value;
+    if (!timeVal) return 'By Tonight';
+    const [h, m] = timeVal.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const formattedHour = h % 12 || 12;
+    return `Until ${formattedHour}:${m < 10 ? '0' + m : m} ${period}`;
+  }
+  return document.getElementById('food-expiry-input').value;
+}
+
+// 9.1 Food Photo Capture & Preset Handlers
+const foodPhotoPresets = {
+  thali: 'https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=500&auto=format&fit=crop&q=80',
+  rice: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=500&auto=format&fit=crop&q=80',
+  curry: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=500&auto=format&fit=crop&q=80',
+  bakery: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&auto=format&fit=crop&q=80'
+};
+let selectedFoodPhoto = '';
+
+function handlePhotoUpload(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    selectedFoodPhoto = evt.target.result;
+    showPhotoPreview(selectedFoodPhoto);
+    beep(520);
+  };
+  reader.readAsDataURL(file);
+}
+
+function selectPresetPhoto(type) {
+  selectedFoodPhoto = foodPhotoPresets[type] || '';
+  if (selectedFoodPhoto) {
+    showPhotoPreview(selectedFoodPhoto);
+    beep(480);
+  }
+}
+
+function showPhotoPreview(url) {
+  const previewBox = document.getElementById('photo-preview-container');
+  const previewImg = document.getElementById('food-photo-preview');
+  const uploadZone = document.getElementById('photo-upload-zone');
+
+  if (previewBox && previewImg) {
+    previewImg.src = url;
+    previewBox.classList.remove('hidden');
+    if (uploadZone) uploadZone.classList.add('hidden');
+  }
+}
+
+function removeSelectedPhoto() {
+  selectedFoodPhoto = '';
+  const previewBox = document.getElementById('photo-preview-container');
+  const uploadZone = document.getElementById('photo-upload-zone');
+  const fileInput = document.getElementById('food-photo-input');
+
+  if (previewBox) previewBox.classList.add('hidden');
+  if (uploadZone) uploadZone.classList.remove('hidden');
+  if (fileInput) fileInput.value = '';
+  beep(300, 'triangle');
+}
+
+function openDonationModal() {
+  beep(440);
+  removeSelectedPhoto();
+  const now = new Date();
+  now.setHours(now.getHours() + 3);
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const timeInput = document.getElementById('custom-exact-time');
+  if (timeInput) timeInput.value = `${hh}:${mm}`;
+
+  updateGpsDisplays();
+
+  const modal = document.getElementById('donation-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeDonationModal() {
+  const modal = document.getElementById('donation-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function handleNewFoodSubmit(e) {
+  e.preventDefault();
+  const title = document.getElementById('food-title-input').value;
+  const expiry = getSelectedExpiryTime();
+
+  const newPayload = {
+    title,
+    expires: expiry,
+    donor: currentEntity || 'Royal Spice Caterers',
+    lat: donorLat,
+    lng: donorLng,
+    gpsAddress: (currentUserProfile && currentUserProfile.address) || 'Verified Kitchen GPS Location',
+    image: selectedFoodPhoto || null
+  };
+
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/listings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPayload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        await loadListings();
+      }
+    } catch (err) {
+      console.warn('API error, saving locally:', err);
+    }
+  } else {
+    listings.unshift({
+      id: Date.now(),
+      title,
+      donor: currentEntity || 'Royal Spice Caterers',
+      dist: 'Nearby (GPS)',
+      icon: '🍲',
+      image: selectedFoodPhoto || null,
+      expires: expiry,
+      lat: donorLat,
+      lng: donorLng,
+      gpsAddress: (currentUserProfile && currentUserProfile.address) || 'Kitchen GPS Location',
+      tag: 'Just Listed',
+      tagColor: 'emerald',
+      status: 'Awaiting NGO Claim',
+      claimed: false,
+      extra: 'Ready for Pickup'
+    });
+  }
+
+  renderDonorCards();
+  closeDonationModal();
+  document.getElementById('add-food-form').reset();
+  removeSelectedPhoto();
+  beep(587);
+  confetti({ particleCount: 30, spread: 50 });
+}
+
+async function removeDonorListing(id) {
+  if (API_BASE) {
+    try {
+      await fetch(`${API_BASE}/listings/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.warn('API delete error:', err);
+    }
+  }
+  listings = listings.filter(i => i.id !== id);
+  renderDonorCards();
+  beep(280, 'triangle');
+}
+
+async function claimFood(id) {
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/listings/${id}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ngo: currentEntity || 'Hope Shelter Network' })
+      });
+      const result = await res.json();
+      if (result.success) {
+        await loadListings();
+      }
+    } catch (err) {
+      console.warn('API claim error:', err);
+    }
+  } else {
+    const item = listings.find(i => i.id === id);
+    if (item) item.claimed = true;
+  }
+
+  renderNgoCards();
+  beep(660);
+  confetti({ particleCount: 35, spread: 60 });
+}
+
+function openTaxReceiptAlert() {
+  alert("📄 Section 80G Tax Exemption Certificate downloaded for Royal Spice Caterers.");
+}
+
+// 10. Event Listeners
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeDonationModal();
+    closeGoogleAuthModal();
+    closeProfileModal();
+    closeGpsRouteModal();
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  loadListings();
+});
