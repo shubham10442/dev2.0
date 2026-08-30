@@ -134,8 +134,65 @@ const fallbackUsers = {
   }
 };
 
-// Initial Fallback Listings (20 Items Total)
+// Initial Fallback Listings (Including Advance Pre-Bookings for Early NGO Notice)
 const fallbackListings = [
+  { 
+    id: 101, 
+    title: '120 Servings Grand Wedding Feast Buffet', 
+    donor: 'Royal Spice Caterers', 
+    donorEmail: 'chef.royalspice@gmail.com', 
+    dist: '1.2 km', 
+    lat: 28.6139, 
+    lng: 77.2090, 
+    icon: '💒', 
+    expires: 'Tonight, 10:30 PM', 
+    tag: '📅 Pre-Booking Notice', 
+    tagColor: 'amber', 
+    status: 'Scheduled (Awaiting NGO Reservation)', 
+    claimed: false, 
+    extra: 'Buffet wrap-up tonight', 
+    quantity: 55, 
+    servings: 120, 
+    category: 'Cooked Meals', 
+    isPreBooking: true, 
+    preBookStatus: 'awaiting_reserve', 
+    eventType: '💒 Wedding Reception Banquet', 
+    expectedTime: 'Tonight, 10:30 PM', 
+    freshWindow: '4 Hours (Hot Holding)', 
+    packaging: 'Large stainless food chafers & insulated crates', 
+    contactPerson: 'Banquet Mgr Rajesh Verma', 
+    contactPhone: '+91 98112 34567', 
+    notes: 'Service Gate #3 behind lawn. Food will be packed right at buffet wrap-up.' 
+  },
+  { 
+    id: 102, 
+    title: '50 Boxed Executive Lunch Trays', 
+    donor: 'Royal Spice Caterers', 
+    donorEmail: 'chef.royalspice@gmail.com', 
+    dist: '1.8 km', 
+    lat: 28.6160, 
+    lng: 77.2140, 
+    icon: '🏢', 
+    expires: 'Tomorrow, 2:00 PM', 
+    tag: '🤝 Early-Reserved', 
+    tagColor: 'blue', 
+    status: 'Early-Reserved by Hope Shelter Network', 
+    claimed: true, 
+    claimedBy: 'Hope Shelter Network', 
+    extra: 'Summit Lunch Surplus', 
+    quantity: 25, 
+    servings: 50, 
+    category: 'Cooked Meals', 
+    isPreBooking: true, 
+    preBookStatus: 'early_reserved', 
+    eventType: '🏢 Tech Summit Lunch Closing', 
+    expectedTime: 'Tomorrow, 2:00 PM', 
+    freshWindow: '3 Hours', 
+    packaging: 'Individually sealed eco-kraft meal boxes', 
+    contactPerson: 'Catering Lead Ananya', 
+    contactPhone: '+91 98711 22334', 
+    notes: 'Tower B Loading Bay. Security clearance registered.' 
+  },
   { id: 1, title: '30 Servings Veg Thali', donor: 'Royal Spice Caterers', dist: '1.2 km', lat: 28.6139, lng: 77.2090, icon: '🍲', expires: '1h 20m', tag: '⚡ Urgent (<2h)', tagColor: 'amber', status: 'Driver En Route', claimed: true, extra: 'Driver: Mark R. • ETA 12m', quantity: 30, servings: 30, category: 'Cooked Meals' },
   { id: 2, title: '15 Packed Rice Bowls', donor: 'Green Earth Bistro', dist: '0.8 km', lat: 28.6190, lng: 77.2130, icon: '🍱', expires: '2h 45m', tag: 'Fresh Pack', tagColor: 'emerald', status: 'Awaiting NGO Claim', claimed: false, extra: 'Listed 20m ago', quantity: 15, servings: 15, category: 'Cooked Meals' },
   { id: 3, title: '25 Sourdough Loaves', donor: 'Golden Crust Bakery', dist: '2.4 km', lat: 28.6280, lng: 77.2250, icon: '🥖', expires: '6h 10m', tag: 'Artisan Bakery', tagColor: 'purple', status: 'Awaiting NGO Claim', claimed: false, extra: 'Ready for pickup', quantity: 25, servings: 50, category: 'Bakery & Bread' },
@@ -777,6 +834,7 @@ async function switchView(role = 'login') {
 
       renderDonorCards();
       updateImpactStats();
+      renderDonorTrophies();
       setTimeout(initDonorMap, 200);
     } else if (role === 'ngo') {
       const bannerName = document.getElementById('ngo-banner-name');
@@ -791,6 +849,7 @@ async function switchView(role = 'login') {
 
       renderNgoCards();
       renderNgoNotifications();
+      renderNgoReviews();
       setTimeout(initNgoMap, 200);
     }
   }
@@ -850,6 +909,8 @@ function updateGpsDisplays() {
 
   if (coordsEl) coordsEl.textContent = coordsStr;
   if (modalGpsEl) modalGpsEl.textContent = coordsStr;
+  const prebookGpsEl = document.getElementById('prebook-gps-display');
+  if (prebookGpsEl) prebookGpsEl.textContent = coordsStr;
   if (gmapsLink) gmapsLink.href = `https://maps.google.com/?q=${donorLat},${donorLng}`;
   if (addrEl && currentUserProfile && currentUserProfile.address) {
     addrEl.textContent = currentUserProfile.address;
@@ -1610,16 +1671,107 @@ function setDonorPage(page) {
 function renderDonorCards() {
   const activeContainer = document.getElementById('donor-listings-container');
   const claimedContainer = document.getElementById('donor-claimed-container');
-  if (!activeContainer && !claimedContainer) return;
+  const prebookContainer = document.getElementById('donor-prebookings-container');
+  if (!activeContainer && !claimedContainer && !prebookContainer) return;
 
-  const availableListings = listings.filter(item => !item.claimed);
-  const claimedListings = listings.filter(item => item.claimed);
+  const preBookings = listings.filter(item => item.isPreBooking);
+  const availableListings = listings.filter(item => !item.claimed && !item.isPreBooking);
+  const claimedListings = listings.filter(item => item.claimed && !item.isPreBooking);
+
+  const prebookBadge = document.getElementById('donor-prebook-badge');
+  if (prebookBadge) prebookBadge.textContent = `${preBookings.length} Scheduled`;
 
   const activeBadge = document.getElementById('donor-listing-badge');
   if (activeBadge) activeBadge.textContent = `${availableListings.length} Available`;
 
   const claimedBadge = document.getElementById('donor-claimed-badge');
   if (claimedBadge) claimedBadge.textContent = `${claimedListings.length} Claimed`;
+
+  // 0. Render Scheduled Pre-Bookings (Early Notice for NGOs)
+  if (prebookContainer) {
+    if (preBookings.length === 0) {
+      prebookContainer.innerHTML = `
+        <div class="col-span-full p-6 text-center rounded-2xl bg-amber-50/40 border border-amber-200/60 shadow-xs flex flex-col items-center justify-center">
+          <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mb-2 shadow-xs">
+            <i data-lucide="calendar-plus" class="w-5 h-5"></i>
+          </div>
+          <p class="text-xs font-bold text-slate-800">No scheduled pre-bookings yet</p>
+          <p class="text-[11px] text-slate-500 mt-0.5 max-w-sm">Planning a banquet, party, or buffet wrap-up? Pre-book now so verified NGOs get early notice to schedule vehicle pickup.</p>
+          <button onclick="openPreBookingModal()" class="mt-2.5 text-xs font-bold text-amber-950 bg-amber-300 hover:bg-amber-200 border border-amber-400/50 px-3.5 py-1.5 rounded-xl shadow-xs transition inline-flex items-center gap-1.5 active:scale-95">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Pre-Book Food Notice
+          </button>
+        </div>
+      `;
+    } else {
+      prebookContainer.innerHTML = preBookings.map(item => `
+        <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 ${item.claimed ? 'border-l-blue-500 bg-blue-50/20' : 'border-l-amber-500 bg-amber-50/15'} flex flex-col justify-between hover:shadow-md transition">
+          <div>
+            <div class="flex items-center justify-between mb-2 gap-1.5">
+              <span class="text-[10px] font-bold uppercase bg-amber-100 text-amber-900 px-2 py-0.5 rounded flex items-center gap-1 truncate">
+                <i data-lucide="calendar" class="w-3 h-3 text-amber-700"></i> ${item.eventType || 'Scheduled Surplus'}
+              </span>
+              ${item.claimed 
+                ? `<span class="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0"><i data-lucide="check-circle-2" class="w-3 h-3 text-blue-600"></i> Early-Reserved</span>`
+                : `<span class="text-[11px] font-semibold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0"><i data-lucide="bell" class="w-3 h-3 text-amber-600"></i> Early Notice Sent</span>`
+              }
+            </div>
+
+            <div class="flex items-start gap-3 mb-2.5">
+              ${item.image 
+                ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
+                : `<div class="w-11 h-11 rounded-xl bg-amber-100/70 text-amber-900 flex items-center justify-center text-xl shrink-0 font-bold">${item.icon || '🍱'}</div>`
+              }
+              <div class="min-w-0 flex-1">
+                <h4 class="font-bold text-slate-900 text-sm sm:text-base leading-tight">${item.title}</h4>
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 mt-1">
+                  <span class="font-semibold text-slate-700">👥 ~${item.servings || 50} Servings</span>
+                  ${item.quantity ? `<span class="text-slate-400">•</span><span>📦 ~${item.quantity} kg</span>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Scheduled Early Notice Time Bar -->
+            <div class="bg-amber-100/70 rounded-xl p-2.5 text-xs text-amber-950 flex items-center justify-between gap-2 border border-amber-200/60 mb-2">
+              <div class="flex items-center gap-1.5 font-bold">
+                <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-700 shrink-0"></i>
+                <span>Ready at: ${item.expectedTime || item.expires}</span>
+              </div>
+              <span class="text-[10px] font-semibold bg-white/90 text-amber-900 px-2 py-0.5 rounded-md shadow-2xs">${item.freshWindow || '3h safe window'}</span>
+            </div>
+
+            ${item.claimed && item.claimedBy ? `
+              <div class="p-2 rounded-xl bg-blue-50 border border-blue-200/60 text-xs text-blue-900 flex items-center gap-2 mb-2">
+                <i data-lucide="heart-handshake" class="w-4 h-4 text-blue-600 shrink-0"></i>
+                <span>Early-Reserved by: <strong>${item.claimedBy}</strong></span>
+              </div>
+            ` : ''}
+
+            ${item.packaging ? `
+              <p class="text-[11px] text-slate-500 mb-1 flex items-center gap-1">
+                <i data-lucide="box" class="w-3 h-3 text-slate-400 shrink-0"></i>
+                <span class="truncate">${item.packaging}</span>
+              </p>
+            ` : ''}
+
+            ${item.contactPerson ? `
+              <p class="text-[11px] text-slate-500 mb-1 flex items-center gap-1">
+                <i data-lucide="user" class="w-3 h-3 text-slate-400 shrink-0"></i>
+                <span>Contact: ${item.contactPerson} ${item.contactPhone ? `(${item.contactPhone})` : ''}</span>
+              </p>
+            ` : ''}
+          </div>
+
+          <div class="flex items-center justify-between pt-3 mt-2 border-t border-slate-100 text-xs">
+            <button onclick="markPreBookingReady(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl shadow-xs transition flex items-center gap-1 text-xs active:scale-95">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+              <span>⚡ Mark Food Ready Now</span>
+            </button>
+            <button onclick="removeDonorListing(${item.id})" class="text-xs text-red-500 hover:text-red-700 font-semibold transition">Cancel Notice</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
 
   // 1. Render Available Surplus Listings (Paginated in single section)
   if (activeContainer) {
@@ -1759,7 +1911,7 @@ async function renderNgoCards(query = '') {
     `;
   } else {
     container.innerHTML = pageItems.map(item => `
-    <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-${item.tagColor || 'blue'}-500 flex flex-col justify-between hover:shadow-md transition">
+    <div class="glass-card rounded-2xl p-4 shadow-soft border-l-4 border-l-${item.isPreBooking ? 'amber' : (item.tagColor || 'blue')}-500 flex flex-col justify-between hover:shadow-md transition ${item.isPreBooking ? 'bg-amber-50/15' : ''}">
       <div class="flex items-start gap-3 mb-3">
         ${item.image 
           ? `<img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs">` 
@@ -1767,13 +1919,21 @@ async function renderNgoCards(query = '') {
         }
         <div class="min-w-0 flex-1">
           <div class="flex items-center justify-between gap-1">
-            <span class="text-[10px] font-bold uppercase bg-${item.tagColor || 'blue'}-100 text-${item.tagColor || 'blue'}-800 px-2 py-0.5 rounded truncate">${item.tag || 'Surplus'}</span>
+            <span class="text-[10px] font-bold uppercase bg-${item.isPreBooking ? 'amber' : (item.tagColor || 'blue')}-100 text-${item.isPreBooking ? 'amber' : (item.tagColor || 'blue')}-800 px-2 py-0.5 rounded truncate flex items-center gap-1">
+              ${item.isPreBooking ? `<i data-lucide="calendar-clock" class="w-3 h-3 text-amber-700"></i> PRE-BOOKING` : (item.tag || 'Surplus')}
+            </span>
             <button onclick="openGpsRouteModal(${item.id})" class="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-0.5 rounded-md transition" title="View GPS Route on Map">
               <i data-lucide="navigation" class="w-3 h-3 text-blue-500"></i>
               <span>GPS Route</span>
             </button>
           </div>
           <h4 class="font-bold text-slate-900 text-sm sm:text-base mt-1 truncate" title="${item.title}">${item.title}</h4>
+          ${item.isPreBooking ? `
+            <div class="my-1.5 py-1 px-2.5 rounded-xl bg-amber-100/70 border border-amber-200/60 text-[11px] text-amber-950 flex items-center justify-between gap-1">
+              <span class="font-bold flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3 text-amber-700"></i> Ready: ${item.expectedTime || item.expires}</span>
+              <span class="text-[10px] font-semibold text-amber-800 bg-white/80 px-1.5 py-0.2 rounded">~${item.servings || 50} Servings</span>
+            </div>
+          ` : ''}
           <p class="text-xs text-slate-500 flex items-center gap-1 truncate">
             <i data-lucide="map-pin" class="w-3 h-3 text-emerald-600 shrink-0"></i>
             <span>${item.donor || 'Kitchen Donor'} • ${item.dist || '1.2 km'}</span>
@@ -1781,10 +1941,14 @@ async function renderNgoCards(query = '') {
         </div>
       </div>
       <div class="flex items-center justify-between pt-3 mt-2 border-t border-slate-100 text-xs">
-        <span class="text-slate-500 font-medium">Expires: ${item.expires}</span>
-        ${item.claimed 
-          ? `<span class="bg-slate-800 text-emerald-300 font-bold px-3 py-1.5 rounded-xl">Claimed ✓</span>` 
-          : `<button onclick="claimFood(${item.id})" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow transition active:scale-95">Claim for NGO</button>`
+        <span class="text-slate-500 font-medium">${item.isPreBooking ? 'Scheduled: ' + (item.expectedTime || item.expires) : 'Expires: ' + item.expires}</span>
+        ${item.isPreBooking 
+          ? (item.claimed 
+              ? `<span class="bg-purple-100 text-purple-900 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 text-purple-600"></i> Early-Reserved ✓</span>`
+              : `<button onclick="earlyReserveFood(${item.id})" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow transition active:scale-95 flex items-center gap-1.5"><i data-lucide="calendar-check" class="w-3.5 h-3.5"></i> Early Reserve</button>`)
+          : (item.claimed 
+              ? `<span class="bg-slate-800 text-emerald-300 font-bold px-3 py-1.5 rounded-xl">Claimed ✓</span>` 
+              : `<button onclick="claimFood(${item.id})" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow transition active:scale-95">Claim for NGO</button>`)
         }
       </div>
     </div>
@@ -1904,6 +2068,310 @@ function removeSelectedPhoto() {
   if (uploadZone) uploadZone.classList.remove('hidden');
   if (fileInput) fileInput.value = '';
   beep(300, 'triangle');
+}
+
+// ==================== PRE-BOOKING & EARLY FOOD NOTICE SYSTEM ====================
+let selectedPrebookPhoto = '';
+
+function openPreBookingModal() {
+  beep(480);
+  removePrebookPhoto();
+  
+  // Default to 3 hours ahead
+  const now = new Date();
+  now.setHours(now.getHours() + 3);
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  
+  const dtInput = document.getElementById('prebook-datetime-input');
+  if (dtInput) {
+    dtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    const curNow = new Date();
+    const curY = curNow.getFullYear();
+    const curM = String(curNow.getMonth() + 1).padStart(2, '0');
+    const curD = String(curNow.getDate()).padStart(2, '0');
+    const curH = String(curNow.getHours()).padStart(2, '0');
+    const curMin = String(curNow.getMinutes()).padStart(2, '0');
+    dtInput.min = `${curY}-${curM}-${curD}T${curH}:${curMin}`;
+  }
+
+  // Prepopulate contact details from profile if available
+  if (currentUserProfile) {
+    const nameEl = document.getElementById('prebook-contact-name');
+    const phoneEl = document.getElementById('prebook-contact-phone');
+    if (nameEl && !nameEl.value) nameEl.value = currentUserProfile.contactPerson || currentUserProfile.name || '';
+    if (phoneEl && !phoneEl.value) phoneEl.value = currentUserProfile.phone || '';
+  }
+
+  const gpsDisplay = document.getElementById('prebook-gps-display');
+  if (gpsDisplay) gpsDisplay.textContent = `${donorLat.toFixed(4)}° N, ${donorLng.toFixed(4)}° E`;
+
+  const modal = document.getElementById('prebooking-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closePreBookingModal() {
+  const modal = document.getElementById('prebooking-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function setPrebookTimeQuick(preset) {
+  beep(460);
+  const now = new Date();
+  let target = new Date(now);
+
+  if (preset === 'tonight-10') {
+    target.setHours(22, 0, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+  } else if (preset === 'tonight-1130') {
+    target.setHours(23, 30, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+  } else if (preset === 'tomorrow-lunch') {
+    target.setDate(target.getDate() + 1);
+    target.setHours(13, 30, 0, 0);
+  } else if (preset === 'tomorrow-dinner') {
+    target.setDate(target.getDate() + 1);
+    target.setHours(21, 30, 0, 0);
+  }
+
+  const y = target.getFullYear();
+  const m = String(target.getMonth() + 1).padStart(2, '0');
+  const d = String(target.getDate()).padStart(2, '0');
+  const h = String(target.getHours()).padStart(2, '0');
+  const min = String(target.getMinutes()).padStart(2, '0');
+
+  const dtInput = document.getElementById('prebook-datetime-input');
+  if (dtInput) dtInput.value = `${y}-${m}-${d}T${h}:${min}`;
+}
+
+function handlePrebookPhotoUpload(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    selectedPrebookPhoto = evt.target.result;
+    showPrebookPhotoPreview(selectedPrebookPhoto);
+    beep(520);
+  };
+  reader.readAsDataURL(file);
+}
+
+function selectPrebookPresetPhoto(type) {
+  selectedPrebookPhoto = foodPhotoPresets[type] || '';
+  if (selectedPrebookPhoto) {
+    showPrebookPhotoPreview(selectedPrebookPhoto);
+    beep(480);
+  }
+}
+
+function showPrebookPhotoPreview(url) {
+  const previewBox = document.getElementById('prebook-photo-preview-container');
+  const previewImg = document.getElementById('prebook-photo-preview');
+  const uploadZone = document.getElementById('prebook-photo-upload-zone');
+
+  if (previewBox && previewImg) {
+    previewImg.src = url;
+    previewBox.classList.remove('hidden');
+    if (uploadZone) uploadZone.classList.add('hidden');
+  }
+}
+
+function removePrebookPhoto() {
+  selectedPrebookPhoto = '';
+  const previewBox = document.getElementById('prebook-photo-preview-container');
+  const uploadZone = document.getElementById('prebook-photo-upload-zone');
+  const fileInput = document.getElementById('prebook-photo-input');
+
+  if (previewBox) previewBox.classList.add('hidden');
+  if (uploadZone) uploadZone.classList.remove('hidden');
+  if (fileInput) fileInput.value = '';
+  beep(300, 'triangle');
+}
+
+function formatPrebookDateTime(rawVal) {
+  if (!rawVal) return 'Tonight, 10:00 PM';
+  const d = new Date(rawVal);
+  if (isNaN(d.getTime())) return 'Tonight, 10:00 PM';
+  
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const isToday = d.toDateString() === today.toDateString();
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+
+  let prefix = isToday ? 'Today' : (isTomorrow ? 'Tomorrow' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+  let timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return `${prefix}, ${timeStr}`;
+}
+
+async function handlePreBookingSubmit(e) {
+  e.preventDefault();
+  const eventType = document.getElementById('prebook-event-type').value;
+  const title = document.getElementById('prebook-title-input').value;
+  const servings = parseInt(document.getElementById('prebook-servings-input').value || '50', 10);
+  const quantity = parseInt(document.getElementById('prebook-quantity-input').value || '25', 10);
+  const rawDatetime = document.getElementById('prebook-datetime-input').value;
+  const freshWindow = document.getElementById('prebook-fresh-window').value;
+  const packaging = document.getElementById('prebook-packaging').value;
+  const contactName = document.getElementById('prebook-contact-name').value;
+  const contactPhone = document.getElementById('prebook-contact-phone').value;
+  const notes = document.getElementById('prebook-notes').value;
+
+  const formattedTime = formatPrebookDateTime(rawDatetime);
+
+  let icon = '🍱';
+  if (eventType.includes('Wedding')) icon = '💒';
+  else if (eventType.includes('Buffet')) icon = '🍽️';
+  else if (eventType.includes('Corporate')) icon = '🏢';
+  else if (eventType.includes('College') || eventType.includes('Hostel')) icon = '🥣';
+  else if (eventType.includes('Party')) icon = '🎉';
+  else if (eventType.includes('Bakery')) icon = '🥖';
+
+  const newPrebook = {
+    id: Date.now(),
+    title,
+    isPreBooking: true,
+    preBookStatus: 'awaiting_reserve',
+    eventType,
+    expectedTime: formattedTime,
+    rawDatetime,
+    servings,
+    quantity,
+    freshWindow,
+    packaging,
+    contactPerson: contactName,
+    contactPhone,
+    notes,
+    donor: currentEntity || 'Royal Spice Caterers',
+    donorEmail: (currentUserProfile && currentUserProfile.email) || currentEmail || 'chef.royalspice@gmail.com',
+    dist: 'Nearby (GPS)',
+    lat: donorLat,
+    lng: donorLng,
+    gpsAddress: (currentUserProfile && currentUserProfile.address) || 'Verified Kitchen GPS Location',
+    icon,
+    image: selectedPrebookPhoto || null,
+    expires: formattedTime,
+    tag: '📅 Pre-Booking Notice',
+    tagColor: 'amber',
+    status: 'Scheduled (Awaiting NGO Reservation)',
+    claimed: false,
+    claimedBy: null
+  };
+
+  listings.unshift(newPrebook);
+
+  // Dispatch broadcast notification to NGO Notification Center
+  ngoNotifications.unshift({
+    id: 'notif-' + Date.now(),
+    type: 'urgent',
+    title: '📢 Early Food Notice Broadcasted',
+    message: `${newPrebook.donor} posted advance notice: "${title}" (~${servings} servings) scheduled for ${formattedTime}. Reserve now to allocate logistics!`,
+    time: 'Just now',
+    unread: true,
+    listingId: newPrebook.id,
+    icon: 'calendar-clock',
+    badgeColor: 'amber'
+  });
+
+  renderDonorCards();
+  renderNgoNotifications();
+  if (currentRole === 'ngo') renderNgoCards();
+
+  closePreBookingModal();
+  document.getElementById('prebook-food-form').reset();
+  removePrebookPhoto();
+
+  showNgoToast('Early Notice Broadcasted! 📢', `NGOs alerted for "${title}" scheduled for ${formattedTime}.`, 'success');
+  beep(650);
+  confetti({ particleCount: 35, spread: 55, colors: ['#F59E0B', '#10B981', '#3B82F6'] });
+}
+
+async function markPreBookingReady(id) {
+  const item = listings.find(i => i.id === id);
+  if (!item) return;
+
+  item.isPreBooking = false;
+  item.tag = 'Food Ready Now';
+  item.tagColor = 'emerald';
+
+  if (item.claimed) {
+    item.status = 'Surplus Ready • Driver Dispatched';
+    item.extra = `Food ready now at ${item.donor} • Pickup immediate`;
+    ngoNotifications.unshift({
+      id: 'notif-' + Date.now(),
+      type: 'urgent',
+      title: '⚡ Surplus Food is Now Ready!',
+      message: `"${item.title}" from ${item.donor} is now packed and ready for immediate pickup. Volunteer driver dispatched.`,
+      time: 'Just now',
+      unread: true,
+      listingId: item.id,
+      icon: 'zap',
+      badgeColor: 'emerald'
+    });
+    renderNgoNotifications();
+    showNgoToast('Food Marked Ready!', `Pickup driver alerted for "${item.title}".`, 'success');
+  } else {
+    item.status = 'Awaiting NGO Claim';
+    item.extra = 'Freshly Packed & Ready';
+    ngoNotifications.unshift({
+      id: 'notif-' + Date.now(),
+      type: 'urgent',
+      title: '⚡ Pre-Booked Surplus Now Ready for Claim',
+      message: `"${item.title}" from ${item.donor} is now ready for immediate claim and pickup.`,
+      time: 'Just now',
+      unread: true,
+      listingId: item.id,
+      icon: 'bell',
+      badgeColor: 'emerald'
+    });
+    renderNgoNotifications();
+    showNgoToast('Moved to Active Surplus!', `"${item.title}" is now available for immediate claim.`, 'success');
+  }
+
+  renderDonorCards();
+  if (currentRole === 'ngo') renderNgoCards();
+  beep(750);
+  confetti({ particleCount: 45, spread: 60 });
+}
+
+async function earlyReserveFood(id) {
+  const item = listings.find(i => i.id === id);
+  if (item) {
+    item.claimed = true;
+    item.claimedBy = currentEntity || 'Hope Shelter Network';
+    item.preBookStatus = 'early_reserved';
+    item.status = `Early-Reserved by ${item.claimedBy}`;
+
+    ngoNotifications.unshift({
+      id: 'notif-' + Date.now(),
+      type: 'success',
+      title: '📅 Early Food Reservation Confirmed',
+      message: `You early-reserved "${item.title}" from ${item.donor}. Food will be ready at ${item.expectedTime || item.expires}. Route scheduled.`,
+      time: 'Just now',
+      unread: true,
+      listingId: item.id,
+      icon: 'calendar-check',
+      badgeColor: 'purple'
+    });
+    renderNgoNotifications();
+    showNgoToast('Early Reservation Confirmed!', `Reserved "${item.title}" for ${item.expectedTime || item.expires}.`, 'success');
+  }
+
+  renderNgoCards();
+  if (currentRole === 'donor') renderDonorCards();
+  beep(660);
+  confetti({ particleCount: 40, spread: 70, colors: ['#D97706', '#9333EA', '#10B981'] });
 }
 
 function openDonationModal() {
@@ -2073,6 +2541,487 @@ async function confirmHandover(id) {
   beep(880);
 }
 
+// ==================== DONOR TROPHY & GAMIFICATION SYSTEM ====================
+let currentTrophyFilter = 'ALL';
+
+const donorTrophies = [
+  {
+    id: 'hunger-hero',
+    title: 'Hunger Hero',
+    tier: 'Gold',
+    icon: '🏆',
+    description: 'Diverted over 500 fresh meals to local shelters and soup kitchens.',
+    unlocked: true,
+    progress: 620,
+    target: 500,
+    unit: 'Meals',
+    unlockedDate: 'Aug 15, 2026',
+    reward: 'Priority dispatch tag + Ann Verified Donor Seal',
+    badgeColor: 'amber'
+  },
+  {
+    id: 'eco-guardian',
+    title: 'Eco Guardian',
+    tier: 'Gold',
+    icon: '🌿',
+    description: 'Prevented over 250 kg of CO₂ emissions from landfill food decomposition.',
+    unlocked: true,
+    progress: 355.8,
+    target: 250,
+    unit: 'kg CO₂e',
+    unlockedDate: 'Aug 18, 2026',
+    reward: 'Green Kitchen Certificate + 80G Tax credit badge',
+    badgeColor: 'emerald'
+  },
+  {
+    id: 'lightning-dispatch',
+    title: 'Lightning Dispatch',
+    tier: 'Silver',
+    icon: '⚡',
+    description: 'Completed 5 verified surplus handovers in under 15 mins of driver arrival.',
+    unlocked: true,
+    progress: 8,
+    target: 5,
+    unit: 'Handovers',
+    unlockedDate: 'Aug 22, 2026',
+    reward: 'Express Logistics routing on Ann Dispatch Radar',
+    badgeColor: 'blue'
+  },
+  {
+    id: 'master-planner',
+    title: 'Master Planner',
+    tier: 'Silver',
+    icon: '📅',
+    description: 'Broadcasted advance pre-booking notice for banquet/event surplus 3+ hours early.',
+    unlocked: true,
+    progress: 3,
+    target: 1,
+    unit: 'Pre-Bookings',
+    unlockedDate: 'Aug 28, 2026',
+    reward: 'Early reserve broadcast priority for upcoming events',
+    badgeColor: 'purple'
+  },
+  {
+    id: 'five-star-donor',
+    title: '5-Star Kitchen',
+    tier: 'Gold',
+    icon: '⭐',
+    description: 'Maintained 4.8+ star rating from verified partner shelters and NGOs.',
+    unlocked: true,
+    progress: 4.9,
+    target: 4.8,
+    unit: 'Stars',
+    unlockedDate: 'Aug 29, 2026',
+    reward: 'Top-Rated Badge featured on NGO surplus feed',
+    badgeColor: 'amber'
+  },
+  {
+    id: 'century-dispatcher',
+    title: '1,000 Meals Legend',
+    tier: 'Platinum',
+    icon: '🎖️',
+    description: 'Reach the historic community milestone of 1,000 total surplus meals rescued.',
+    unlocked: false,
+    progress: 620,
+    target: 1000,
+    unit: 'Meals',
+    reward: 'Platinum Plaque + Featured in National Zero-Waste Press',
+    badgeColor: 'slate'
+  },
+  {
+    id: 'midnight-angel',
+    title: 'Midnight Angel',
+    tier: 'Platinum',
+    icon: '🌙',
+    description: 'Successfully dispatched late night surplus after 10:00 PM for night shelters.',
+    unlocked: false,
+    progress: 2,
+    target: 5,
+    unit: 'Night Rescues',
+    reward: 'Night Shelter Special Partner Commendation',
+    badgeColor: 'indigo'
+  },
+  {
+    id: 'zero-waste-titan',
+    title: 'Zero Waste Titan',
+    tier: 'Diamond',
+    icon: '👑',
+    description: 'Achieve 2,500 total meals diverted with full FSSAI excellence compliance.',
+    unlocked: false,
+    progress: 620,
+    target: 2500,
+    unit: 'Meals',
+    reward: 'Diamond Trophy + City Hall Civic Honor Nomination',
+    badgeColor: 'cyan'
+  }
+];
+
+function openTrophyModal(targetTrophyId = null) {
+  beep(520);
+  const modal = document.getElementById('donor-trophy-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    renderTrophyHall(currentTrophyFilter);
+    if (targetTrophyId) {
+      setTimeout(() => {
+        const el = document.getElementById(`trophy-card-${targetTrophyId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-4', 'ring-amber-400');
+          setTimeout(() => el.classList.remove('ring-4', 'ring-amber-400'), 2000);
+        }
+      }, 200);
+    }
+  }
+}
+
+function closeTrophyModal() {
+  const modal = document.getElementById('donor-trophy-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function filterTrophies(filter) {
+  currentTrophyFilter = filter;
+  beep(480);
+  ['ALL', 'unlocked', 'locked'].forEach(f => {
+    const btn = document.getElementById(`trophy-filter-${f}`);
+    if (btn) {
+      if (f === filter) {
+        btn.className = 'trophy-filter-btn px-3 py-1 rounded-xl bg-amber-500 text-white font-bold transition shadow-xs text-xs';
+      } else {
+        btn.className = 'trophy-filter-btn px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs';
+      }
+    }
+  });
+  renderTrophyHall(filter);
+}
+
+function renderTrophyHall(filter = 'ALL') {
+  const container = document.getElementById('trophy-hall-grid');
+  if (!container) return;
+
+  const items = donorTrophies.filter(t => {
+    if (filter === 'unlocked') return t.unlocked;
+    if (filter === 'locked') return !t.unlocked;
+    return true;
+  });
+
+  container.innerHTML = items.map(t => {
+    const pct = Math.min(100, Math.round((t.progress / t.target) * 100));
+    return `
+      <div id="trophy-card-${t.id}" class="p-4 rounded-2xl border ${t.unlocked ? 'bg-gradient-to-br from-amber-50/40 via-white to-orange-50/30 border-amber-300/80 shadow-soft' : 'bg-slate-50/70 border-slate-200 opacity-80'} flex flex-col justify-between transition hover:shadow-md">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-12 h-12 rounded-2xl ${t.unlocked ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs' : 'bg-slate-200 text-slate-400'} flex items-center justify-center text-2xl shrink-0">
+                ${t.icon}
+              </div>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <h4 class="font-extrabold text-slate-900 text-sm leading-tight">${t.title}</h4>
+                  <span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${t.unlocked ? 'bg-amber-200 text-amber-900' : 'bg-slate-200 text-slate-600'}">${t.tier}</span>
+                </div>
+                <span class="text-[10px] font-medium text-slate-500">${t.unlocked ? 'Unlocked ' + t.unlockedDate : 'Milestone Locked'}</span>
+              </div>
+            </div>
+            ${t.unlocked 
+              ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Earned</span>`
+              : `<span class="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i data-lucide="lock" class="w-3 h-3 text-slate-500"></i> ${pct}%</span>`
+            }
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">${t.description}</p>
+        </div>
+
+        <div>
+          <!-- Progress bar -->
+          <div class="space-y-1 bg-white/90 p-2.5 rounded-xl border border-slate-200/80 mb-2">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-slate-500">Milestone Progress</span>
+              <span class="${t.unlocked ? 'text-emerald-700' : 'text-amber-800'} font-mono">${t.progress} / ${t.target} ${t.unit}</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div class="h-1.5 rounded-full ${t.unlocked ? 'bg-emerald-500' : 'bg-amber-500'}" style="width: ${pct}%"></div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+            <span class="truncate flex items-center gap-1"><i data-lucide="gift" class="w-3 h-3 text-amber-600 shrink-0"></i> ${t.reward}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  lucide.createIcons();
+}
+
+function renderDonorTrophies() {
+  const unlockedCount = donorTrophies.filter(t => t.unlocked).length;
+  const countBadge = document.getElementById('donor-trophies-count');
+  if (countBadge) countBadge.textContent = `${unlockedCount} of ${donorTrophies.length} Unlocked`;
+}
+
+// ==================== NGO: DONOR REVIEWS & COMMUNITY FEED SYSTEM ====================
+let currentReviewRating = 5;
+let currentReviewFilter = 'ALL';
+
+let ngoReviews = [
+  {
+    id: 'rev-1',
+    ngoName: 'Hope Shelter Network',
+    ngoAvatar: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=100&auto=format&fit=crop&q=80',
+    donorName: 'Royal Spice Caterers',
+    rating: 5,
+    date: '3 hours ago',
+    mealTitle: '30 Servings Veg Thali & Dal',
+    mealsServed: 65,
+    tags: ['🔥 Hot & Fresh', '📦 Sealed Containers', '⏱️ Punctual Handover'],
+    comment: 'The food was piping hot, exceptionally well packaged in stainless chafers, and fed 65 people at our community dinner. Chef Rajiv was waiting right at the service dock when our van arrived. 10/10 partner!',
+    verified: true
+  },
+  {
+    id: 'rev-2',
+    ngoName: 'Akshaya Relief Foundation',
+    ngoAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80',
+    donorName: 'Golden Crust Bakery',
+    rating: 5,
+    date: 'Yesterday',
+    mealTitle: '25 Sourdough Loaves & Buns',
+    mealsServed: 50,
+    tags: ['🥖 Oven Fresh', '📦 Moisture Proof', '❤️ High Nutrition'],
+    comment: 'Unbelievable artisan bread quality. Sealed fresh right as the bakery closed. Distributed to children at our evening study center. Zero waste!',
+    verified: true
+  },
+  {
+    id: 'rev-3',
+    ngoName: 'City Food Rescue Collective',
+    ngoAvatar: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=100&auto=format&fit=crop&q=80',
+    donorName: 'TechHub Conference',
+    rating: 5,
+    date: '2 days ago',
+    mealTitle: '40 Executive Sandwich Boxes',
+    mealsServed: 40,
+    tags: ['🥪 Individually Boxed', '❄️ Cold Chain Maintained', '🏷️ Labeled Veg/Non-Veg'],
+    comment: 'Corporate conference surplus handled with supreme hygiene. Every sandwich was labeled with timestamp and chilled. Handover took 3 minutes.',
+    verified: true
+  },
+  {
+    id: 'rev-4',
+    ngoName: 'Hope Shelter Network',
+    ngoAvatar: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=100&auto=format&fit=crop&q=80',
+    donorName: 'Spice Symphony Kitchen',
+    rating: 4,
+    date: '3 days ago',
+    mealTitle: '50 Portions Paneer Butter Masala',
+    mealsServed: 50,
+    tags: ['🔥 Hot & Fresh', '📦 Sealed Containers'],
+    comment: 'Delicious rich gravy. We brought our insulated tubs to transfer from their bulk pots. Volunteers were super helpful with loading.',
+    verified: true
+  }
+];
+
+function openReviewModal() {
+  beep(480);
+  setReviewRating(5);
+  const modal = document.getElementById('ngo-review-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closeReviewModal() {
+  const modal = document.getElementById('ngo-review-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function setReviewRating(stars) {
+  currentReviewRating = stars;
+  beep(440 + stars * 40);
+  updateReviewStarsDisplay(stars);
+
+  const labels = {
+    1: '1 Star - Needs Improvement',
+    2: '2 Stars - Fair Quality',
+    3: '3 Stars - Satisfactory',
+    4: '4 Stars - Very Good & Fresh!',
+    5: '5 Stars - Outstanding Quality!'
+  };
+  const lbl = document.getElementById('review-star-label');
+  if (lbl) lbl.textContent = labels[stars] || `${stars} Stars`;
+}
+
+function hoverReviewRating(stars) {
+  updateReviewStarsDisplay(stars);
+}
+
+function resetReviewHover() {
+  updateReviewStarsDisplay(currentReviewRating);
+}
+
+function updateReviewStarsDisplay(stars) {
+  const container = document.getElementById('review-stars-container');
+  if (!container) return;
+  const btns = container.querySelectorAll('.star-btn');
+  btns.forEach((btn, idx) => {
+    if (idx < stars) {
+      btn.className = 'star-btn text-2xl text-amber-400 hover:scale-125 transition transform scale-110';
+      btn.textContent = '★';
+    } else {
+      btn.className = 'star-btn text-2xl text-slate-300 hover:scale-125 transition transform';
+      btn.textContent = '☆';
+    }
+  });
+}
+
+function handleReviewSubmit(e) {
+  e.preventDefault();
+  const donorName = document.getElementById('review-donor-select').value;
+  const mealTitle = document.getElementById('review-meal-title').value;
+  const mealsServed = parseInt(document.getElementById('review-meals-served').value || '50', 10);
+  const comment = document.getElementById('review-comment-input').value;
+
+  const checkedTags = Array.from(document.querySelectorAll('#ngo-write-review-form input[name="quality-tag"]:checked')).map(cb => cb.value);
+
+  const newReview = {
+    id: 'rev-' + Date.now(),
+    ngoName: (currentUserProfile && currentUserProfile.name) || currentEntity || 'Hope Shelter Network',
+    ngoAvatar: (currentUserProfile && currentUserProfile.photo) || 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=100&auto=format&fit=crop&q=80',
+    donorName,
+    rating: currentReviewRating,
+    date: 'Just now',
+    mealTitle,
+    mealsServed,
+    tags: checkedTags.length ? checkedTags : ['🔥 Hot & Fresh', '📦 Sealed Packaging'],
+    comment,
+    verified: true
+  };
+
+  ngoReviews.unshift(newReview);
+
+  // Add alert to NGO notifications
+  ngoNotifications.unshift({
+    id: 'notif-' + Date.now(),
+    type: 'success',
+    title: '⭐ Review Published Successfully',
+    message: `Your verified review for ${donorName} (${currentReviewRating}★) is now visible to the shelter community.`,
+    time: 'Just now',
+    unread: true,
+    icon: 'star',
+    badgeColor: 'amber'
+  });
+
+  renderNgoReviews();
+  renderNgoNotifications();
+  closeReviewModal();
+  document.getElementById('ngo-write-review-form').reset();
+  setReviewRating(5);
+
+  showNgoToast('Review Published! ⭐', `Thank you for rating ${donorName}.`, 'success');
+  beep(700);
+  confetti({ particleCount: 35, spread: 60, colors: ['#F59E0B', '#3B82F6', '#10B981'] });
+}
+
+function filterNgoReviews(filter) {
+  currentReviewFilter = filter;
+  beep(480);
+
+  ['ALL', '5', 'hot', 'packaging'].forEach(f => {
+    const btn = document.getElementById(`rev-filter-btn-${f}`);
+    if (btn) {
+      if (f === filter) {
+        btn.className = 'rev-filter-btn px-3 py-1 rounded-xl bg-blue-600 text-white font-bold transition shadow-xs text-xs';
+      } else {
+        btn.className = 'rev-filter-btn px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs';
+      }
+    }
+  });
+
+  renderNgoReviews(filter);
+}
+
+function renderNgoReviews(filter = 'ALL') {
+  const container = document.getElementById('ngo-reviews-feed-container');
+  const countBadge = document.getElementById('ngo-review-count-badge');
+  if (!container) return;
+
+  if (countBadge) countBadge.textContent = `${ngoReviews.length} Reviews`;
+
+  const filtered = ngoReviews.filter(r => {
+    if (filter === '5') return r.rating === 5;
+    if (filter === 'hot') return r.tags.some(t => t.includes('Hot') || t.includes('Fresh'));
+    if (filter === 'packaging') return r.tags.some(t => t.includes('Package') || t.includes('Containers') || t.includes('Boxed'));
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full p-8 text-center rounded-3xl bg-slate-50 border border-slate-200 text-xs flex flex-col items-center justify-center">
+        <span class="text-3xl mb-2">⭐</span>
+        <p class="font-bold text-slate-700">No reviews found for this filter</p>
+        <p class="text-slate-400 mt-1">Try switching to "All Reviews" or write the first review!</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(r => {
+    const starsStr = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+    return `
+      <div class="glass-card rounded-2xl p-4 shadow-soft border border-slate-100 bg-white/90 hover:shadow-md transition flex flex-col justify-between">
+        <div>
+          <!-- Header -->
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <img src="${r.ngoAvatar}" alt="${r.ngoName}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-2xs">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <h5 class="font-extrabold text-slate-900 text-xs">${r.ngoName}</h5>
+                  ${r.verified ? `<i data-lucide="check-circle" class="w-3 h-3 text-blue-600" title="Verified Relief Partner"></i>` : ''}
+                </div>
+                <span class="text-[11px] text-slate-500">Reviewed <strong class="text-slate-800">${r.donorName}</strong></span>
+              </div>
+            </div>
+            <span class="text-[10px] font-medium text-slate-400 shrink-0">${r.date}</span>
+          </div>
+
+          <!-- Star Rating & Meal Tag -->
+          <div class="flex flex-wrap items-center justify-between gap-1 mb-2 bg-amber-50/60 px-2.5 py-1 rounded-xl border border-amber-100">
+            <div class="flex items-center gap-1.5">
+              <span class="text-amber-500 font-bold text-xs tracking-wider">${starsStr}</span>
+              <span class="text-[11px] font-black text-amber-900">${r.rating}.0</span>
+            </div>
+            <span class="text-[10px] font-bold text-amber-900 bg-white px-2 py-0.5 rounded-md shadow-2xs truncate max-w-[180px]">🍲 ${r.mealTitle}</span>
+          </div>
+
+          <!-- Comments -->
+          <p class="text-xs text-slate-700 leading-relaxed mb-3 italic">"${r.comment}"</p>
+        </div>
+
+        <!-- Badges & Impact Row -->
+        <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5 text-[10px]">
+          <div class="flex flex-wrap gap-1">
+            ${r.tags.map(t => `<span class="bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-md">${t}</span>`).join('')}
+          </div>
+          <span class="text-emerald-700 font-bold flex items-center gap-1">
+            <i data-lucide="users" class="w-3 h-3 text-emerald-600"></i> ~${r.mealsServed} Fed
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  lucide.createIcons();
+}
+
 function openTaxReceiptAlert() {
   const email = (currentUserProfile && currentUserProfile.email) || currentEmail || 'chef.royalspice@gmail.com';
   beep(520);
@@ -2089,6 +3038,9 @@ window.addEventListener('keydown', (e) => {
     closeDonationModal();
     closeProfileModal();
     closeGpsRouteModal();
+    closePreBookingModal();
+    closeTrophyModal();
+    closeReviewModal();
   }
 });
 

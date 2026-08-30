@@ -346,10 +346,16 @@
             List fresh leftovers or surplus batch meals in 30 seconds. Verified local shelters will be alerted for immediate pickup.
           </p>
         </div>
-        <button onclick="openDonationModal()" class="relative z-10 bg-white text-emerald-900 hover:bg-emerald-50 font-extrabold px-6 py-3.5 rounded-2xl text-sm shadow-xl transition active:scale-95 flex items-center gap-2">
-          <i data-lucide="plus-circle" class="w-5 h-5 text-emerald-600"></i>
-          <span>+ List Surplus Food</span>
-        </button>
+        <div class="relative z-10 flex flex-wrap gap-2.5">
+          <button onclick="openDonationModal()" class="bg-white text-emerald-900 hover:bg-emerald-50 font-extrabold px-5 py-3 rounded-2xl text-sm shadow-xl transition active:scale-95 flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600"></i>
+            <span>+ List Surplus Food</span>
+          </button>
+          <button onclick="openPreBookingModal()" class="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-amber-950 font-extrabold px-5 py-3 rounded-2xl text-sm shadow-xl transition active:scale-95 flex items-center gap-2 border border-amber-300">
+            <i data-lucide="calendar-clock" class="w-4 h-4 text-amber-950"></i>
+            <span>📅 Pre-Book Early Notice</span>
+          </button>
+        </div>
       </div>
 
       <!-- Listings Grid -->
@@ -358,6 +364,34 @@
         <!-- Donor Listings Columns (Left) -->
         <div class="lg:col-span-8 space-y-6">
           
+          <!-- SECTION 0: Scheduled Pre-Bookings (Early Notice for NGOs) -->
+          <div class="space-y-3">
+            <div class="glass-card rounded-2xl p-4 flex items-center justify-between shadow-soft border-l-4 border-l-amber-500 bg-amber-50/20">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                  <i data-lucide="calendar-clock" class="w-4 h-4 text-amber-700"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <span>Scheduled Pre-Bookings</span>
+                    <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full hidden sm:inline uppercase">Early Notice for NGOs</span>
+                  </h3>
+                  <p class="text-xs text-slate-500">Upcoming surplus alerted in advance to local shelters & transport drivers</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="donor-prebook-badge" class="bg-amber-100 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-full">0 Scheduled</span>
+                <button onclick="openPreBookingModal()" class="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-200/70 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-xl shadow-xs transition">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  <span>New Pre-Booking</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Dynamic Scheduled Pre-Bookings Container -->
+            <div id="donor-prebookings-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+
           <!-- SECTION 1: Available Surplus Listings (Awaiting NGO Claim) -->
           <div class="space-y-3">
             <div class="glass-card rounded-2xl p-4 flex items-center justify-between shadow-soft border-l-4 border-l-emerald-500">
@@ -416,6 +450,74 @@
             </div>
             <button onclick="openTaxReceiptAlert()" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-center block transition">
               📄 Download 80G Certificate
+            </button>
+          </div>
+
+          <!-- ==================== DONOR TROPHY & GAMIFICATION SHOWCASE ==================== -->
+          <div class="glass-card rounded-2xl p-5 shadow-soft space-y-3.5 text-xs border-t-4 border-t-amber-500 bg-gradient-to-br from-amber-50/30 to-orange-50/20">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-xs text-lg">
+                  🏆
+                </div>
+                <div>
+                  <h3 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                    <span>Impact Trophies</span>
+                    <span class="text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-amber-600 text-white px-2 py-0.5 rounded-full shadow-2xs">GOLD TIER</span>
+                  </h3>
+                  <p class="text-[11px] text-slate-500 font-medium">Rank #4 Top Kitchen Rescuers</p>
+                </div>
+              </div>
+              <button onclick="openTrophyModal()" class="text-amber-700 font-bold hover:text-amber-900 bg-amber-100/80 hover:bg-amber-100 px-2.5 py-1 rounded-xl text-xs transition shadow-2xs flex items-center gap-1">
+                <span>Hall of Fame</span>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- Tier Level Progress -->
+            <div class="space-y-1.5 bg-white/80 p-3 rounded-xl border border-amber-200/60 shadow-2xs">
+              <div class="flex justify-between items-center text-[11px]">
+                <span class="font-bold text-slate-700 flex items-center gap-1">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-500"></i> Level 4: Gold Donor
+                </span>
+                <span class="font-extrabold text-amber-900 font-mono">620 / 1,000 Meals (62%)</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div class="bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 h-2 rounded-full transition-all duration-700" style="width: 62%"></div>
+              </div>
+              <p class="text-[10px] text-slate-400 text-right">380 meals remaining to unlock <strong>Platinum Tier</strong></p>
+            </div>
+
+            <!-- Mini Showcase Grid of Top Unlocked Trophies -->
+            <div>
+              <div class="flex justify-between items-center mb-1.5 text-[11px]">
+                <span class="font-bold text-slate-700">Recent Badges Unlocked:</span>
+                <span id="donor-trophies-count" class="font-bold text-amber-800 bg-amber-100/70 px-1.5 py-0.2 rounded text-[10px]">5 of 8 Unlocked</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-center" id="donor-sidebar-trophies-grid">
+                <div onclick="openTrophyModal('hunger-hero')" class="p-2 rounded-xl bg-white border border-amber-200/80 shadow-2xs hover:scale-105 hover:border-amber-400 transition cursor-pointer group" title="Hunger Hero: 500+ Meals Donated">
+                  <div class="text-xl group-hover:scale-110 transition">🏆</div>
+                  <span class="text-[10px] font-bold text-slate-800 block truncate mt-0.5">Hunger Hero</span>
+                </div>
+                <div onclick="openTrophyModal('eco-guardian')" class="p-2 rounded-xl bg-white border border-emerald-200/80 shadow-2xs hover:scale-105 hover:border-emerald-400 transition cursor-pointer group" title="Eco Guardian: 250kg+ CO2 Offset">
+                  <div class="text-xl group-hover:scale-110 transition">🌿</div>
+                  <span class="text-[10px] font-bold text-slate-800 block truncate mt-0.5">Eco Shield</span>
+                </div>
+                <div onclick="openTrophyModal('lightning-dispatch')" class="p-2 rounded-xl bg-white border border-blue-200/80 shadow-2xs hover:scale-105 hover:border-blue-400 transition cursor-pointer group" title="Lightning Dispatch: Fast Handovers">
+                  <div class="text-xl group-hover:scale-110 transition">⚡</div>
+                  <span class="text-[10px] font-bold text-slate-800 block truncate mt-0.5">Fast Hand</span>
+                </div>
+                <div onclick="openTrophyModal('five-star-donor')" class="p-2 rounded-xl bg-white border border-amber-200/80 shadow-2xs hover:scale-105 hover:border-amber-400 transition cursor-pointer group" title="5-Star Kitchen: 4.8+ NGO Rating">
+                  <div class="text-xl group-hover:scale-110 transition">⭐</div>
+                  <span class="text-[10px] font-bold text-slate-800 block truncate mt-0.5">5-Star</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Action button -->
+            <button onclick="openTrophyModal()" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-amber-950 font-extrabold py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 active:scale-95">
+              <i data-lucide="award" class="w-4 h-4 text-amber-950"></i>
+              <span>View All Trophies & Milestones</span>
             </button>
           </div>
 
@@ -704,6 +806,64 @@
           Showing <strong id="ngo-page-range" class="text-slate-900 font-bold">1 - 3</strong> of <strong id="ngo-total-count" class="text-slate-900 font-bold">20</strong> available surplus meals
         </div>
         <div id="ngo-pagination-controls" class="flex items-center"></div>
+      </div>
+
+      <!-- ==================== NGO: DONOR REVIEWS & COMMUNITY FEED SECTION ==================== -->
+      <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-soft border border-slate-200/80 space-y-5">
+        
+        <!-- Header & Metric Overview -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shadow-xs text-2xl">
+              ⭐
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-extrabold text-slate-900 text-lg">Donor Reviews & Food Quality Ratings</h3>
+                <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                  <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i> Verified Shelter Feedback
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 font-medium">Ratings submitted by partner shelters on freshness, hygiene, temperature, packaging & punctuality</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 self-start sm:self-center">
+            <div class="bg-amber-50 border border-amber-200/80 px-3.5 py-1.5 rounded-2xl text-center shadow-2xs">
+              <div class="flex items-center justify-center gap-1 text-amber-600 font-black text-base">
+                <span>4.9</span>
+                <span class="text-xs text-amber-500">★★★★★</span>
+              </div>
+              <span class="text-[10px] font-bold text-amber-900 block uppercase tracking-wider" id="ngo-review-count-badge">38 Reviews</span>
+            </div>
+
+            <button 
+              onclick="openReviewModal()" 
+              class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition flex items-center gap-1.5 active:scale-95 shrink-0"
+            >
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+              <span>+ Write Donor Review</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Chips -->
+        <div class="flex items-center justify-between gap-3 flex-wrap text-xs">
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1" id="review-filter-buttons">
+            <button onclick="filterNgoReviews('ALL')" id="rev-filter-btn-ALL" class="rev-filter-btn px-3 py-1 rounded-xl bg-blue-600 text-white font-bold transition shadow-xs">All Reviews</button>
+            <button onclick="filterNgoReviews('5')" id="rev-filter-btn-5" class="rev-filter-btn px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">5 Stars (★5)</button>
+            <button onclick="filterNgoReviews('hot')" id="rev-filter-btn-hot" class="rev-filter-btn px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">🔥 Hot & Fresh</button>
+            <button onclick="filterNgoReviews('packaging')" id="rev-filter-btn-packaging" class="rev-filter-btn px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">📦 Pristine Packaging</button>
+          </div>
+
+          <div class="text-[11px] text-slate-400 font-medium">
+            Verified food relief community ratings
+          </div>
+        </div>
+
+        <!-- Dynamic Reviews Cards Container -->
+        <div id="ngo-reviews-feed-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
       </div>
 
     </main>
@@ -1420,6 +1580,184 @@
   </div>
 
 
+  <!-- ==================== MODAL: DONOR PRE-BOOKING EARLY NOTICE ==================== -->
+  <div id="prebooking-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shadow-xs">
+            <i data-lucide="calendar-clock" class="w-5 h-5 text-amber-600"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+              <span>Pre-Book Food Surplus</span>
+              <span class="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Early Notice</span>
+            </h3>
+            <p class="text-xs text-slate-500">Alert nearby NGOs hours in advance to schedule pickup logistics early</p>
+          </div>
+        </div>
+        <button onclick="closePreBookingModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Informational Banner -->
+      <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 mb-4 text-xs text-amber-900 flex items-start gap-2.5">
+        <i data-lucide="sparkles" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+        <div class="leading-relaxed">
+          <span class="font-bold">Why Pre-Book?</span>
+          <span> When you know a wedding, conference, or restaurant buffet will have excess meals, listing here lets NGOs allocate drivers and routes before the event finishes!</span>
+        </div>
+      </div>
+
+      <form id="prebook-food-form" onsubmit="handlePreBookingSubmit(event)" class="space-y-4 text-xs">
+        
+        <!-- 1. Occasion / Source -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Occasion / Surplus Source <span class="text-red-500">*</span></label>
+          <select id="prebook-event-type" required class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+            <option value="💒 Wedding Reception / Banquet">💒 Wedding Reception / Banquet Feast</option>
+            <option value="🍽️ Restaurant Buffet Closing" selected>🍽️ Restaurant Buffet Closing</option>
+            <option value="🏢 Corporate Event / Conference">🏢 Corporate Event / Conference Catering</option>
+            <option value="🎓 College / Hostel Mess">🎓 College / Hostel Mess Surplus</option>
+            <option value="🎉 Private Party / Gathering">🎉 Private Party / Community Gathering</option>
+            <option value="🥖 Bakery / Kitchen Batch End">🥖 Bakery / Daily Production Surplus</option>
+          </select>
+        </div>
+
+        <!-- 2. Food Item & Servings / Quantity -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Food Items & Expected Menu <span class="text-red-500">*</span></label>
+          <input type="text" id="prebook-title-input" required placeholder="e.g. 100+ Servings Paneer Butter Masala, Jeera Rice & Naan" class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Est. Servings (People) <span class="text-red-500">*</span></label>
+            <input type="number" id="prebook-servings-input" min="5" max="5000" value="50" required placeholder="e.g. 50" class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Est. Weight (kg)</label>
+            <input type="number" id="prebook-quantity-input" min="1" max="1000" value="25" placeholder="e.g. 25" class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+          </div>
+        </div>
+
+        <!-- 3. Expected Readiness Date & Time -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block font-bold text-slate-700">Expected Surplus Ready Date & Time <span class="text-red-500">*</span></label>
+            <span class="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded">Early Pickup Schedule</span>
+          </div>
+          <input type="datetime-local" id="prebook-datetime-input" required class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-semibold text-slate-800">
+          
+          <!-- Quick Preset Chips -->
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="text-[10px] text-slate-400 font-medium self-center mr-1">Quick Sets:</span>
+            <button type="button" onclick="setPrebookTimeQuick('tonight-10')" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[11px] font-semibold transition">Tonight 10:00 PM</button>
+            <button type="button" onclick="setPrebookTimeQuick('tonight-1130')" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[11px] font-semibold transition">Tonight 11:30 PM</button>
+            <button type="button" onclick="setPrebookTimeQuick('tomorrow-lunch')" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[11px] font-semibold transition">Tomorrow 1:30 PM</button>
+            <button type="button" onclick="setPrebookTimeQuick('tomorrow-dinner')" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[11px] font-semibold transition">Tomorrow 9:30 PM</button>
+          </div>
+        </div>
+
+        <!-- 4. Freshness Window & Packaging Condition -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Safe Window After Ready</label>
+            <select id="prebook-fresh-window" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+              <option value="3 Hours (Cooked Meals)" selected>⏳ 3 Hours (Standard Cooked)</option>
+              <option value="5 Hours (Insulated Hot Holding)">🔥 5 Hours (Insulated Hot)</option>
+              <option value="12 Hours (Chilled / Cold Chain)">❄️ 12 Hours (Refrigerated)</option>
+              <option value="24 Hours (Bakery / Dry)">📦 24 Hours (Bakery / Dry)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Packaging / Vessel Condition</label>
+            <select id="prebook-packaging" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+              <option value="Donor provides sealed containers" selected>📦 Donor provides sealed boxes</option>
+              <option value="Donor provides large catering chafers">🥘 Donor provides bulk trays</option>
+              <option value="NGO must bring clean insulated vessels">🪣 NGO must bring vessels/crates</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 5. Venue Contact & Gate Dispatch Notes -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Venue Coordinator / Chef Name</label>
+            <input type="text" id="prebook-contact-name" placeholder="e.g. Banquet Mgr Rajesh" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Direct Contact Phone</label>
+            <input type="tel" id="prebook-contact-phone" placeholder="e.g. +91 98765 43210" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Loading Dock / Gate Instructions (Optional)</label>
+          <input type="text" id="prebook-notes" placeholder="e.g. Enter through Service Gate #2 behind hotel lawn. Parking available." class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-amber-500 outline-none font-medium">
+        </div>
+
+        <!-- 6. Photo / Preset Selector -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block font-bold text-slate-700">Food Photo or Menu Preview</label>
+            <span class="text-[10px] text-slate-400 font-medium">Optional</span>
+          </div>
+
+          <!-- Hidden File Input -->
+          <input type="file" id="prebook-photo-input" accept="image/*" onchange="handlePrebookPhotoUpload(event)" class="hidden">
+
+          <div id="prebook-photo-upload-zone" onclick="document.getElementById('prebook-photo-input').click()" class="cursor-pointer border-2 border-dashed border-slate-300 hover:border-amber-500 bg-slate-50 hover:bg-amber-50/40 rounded-2xl p-2.5 text-center transition flex items-center justify-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-white shadow-xs border border-slate-200 flex items-center justify-center text-amber-600">
+              <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-600">Upload Photo or Banner</span>
+          </div>
+
+          <div id="prebook-photo-preview-container" class="hidden relative mt-2 rounded-2xl overflow-hidden border border-slate-200">
+            <img id="prebook-photo-preview" src="" alt="Prebook Preview" class="w-full h-32 object-cover">
+            <button type="button" onclick="removePrebookPhoto()" class="absolute top-2 right-2 bg-slate-900/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow transition">
+              <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <button type="button" onclick="selectPrebookPresetPhoto('thali')" class="px-2 py-0.5 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[10px] font-semibold transition">🍛 Feast Thali</button>
+            <button type="button" onclick="selectPrebookPresetPhoto('curry')" class="px-2 py-0.5 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[10px] font-semibold transition">🥘 Curry Chafer</button>
+            <button type="button" onclick="selectPrebookPresetPhoto('rice')" class="px-2 py-0.5 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[10px] font-semibold transition">🍚 Rice & Biryani</button>
+            <button type="button" onclick="selectPrebookPresetPhoto('bakery')" class="px-2 py-0.5 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-lg text-[10px] font-semibold transition">🥖 Bread & Buns</button>
+          </div>
+        </div>
+
+        <!-- 7. GPS Station Tagged -->
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 text-xs">
+          <div class="flex items-center gap-2">
+            <i data-lucide="map-pin" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <div>
+              <span class="font-bold text-amber-950 block">Venue GPS Location Verified</span>
+              <span id="prebook-gps-display" class="text-[11px] text-amber-800 font-mono">28.6139° N, 77.2090° E</span>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md">Live GPS</span>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closePreBookingModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95">
+            <i data-lucide="bell-ring" class="w-4 h-4"></i>
+            <span>📢 Broadcast Early Notice to NGOs</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
   <!-- ==================== MODAL 4: NGO GPS ROUTE NAVIGATION ==================== -->
   <div id="gps-route-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
@@ -1478,6 +1816,209 @@
           <span>Open in Google Maps</span>
         </a>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: DONOR TROPHY HALL OF FAME ==================== -->
+  <div id="donor-trophy-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shadow-xs text-2xl">
+            🏆
+          </div>
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+              <span>Donor Hall of Fame & Trophies</span>
+              <span class="text-[10px] font-extrabold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full uppercase border border-amber-200">Level 4</span>
+            </h3>
+            <p class="text-xs text-slate-500">Your hunger relief achievements, food milestones & community honors</p>
+          </div>
+        </div>
+        <button onclick="closeTrophyModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Current Tier Banner -->
+      <div class="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white rounded-2xl p-4 shadow-md mb-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-2xl shadow-inner">
+            🥇
+          </div>
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-200 block">Current Status</span>
+            <h4 class="text-lg font-black leading-tight">Gold Tier Rescuer</h4>
+            <p class="text-xs text-amber-100 mt-0.5">Top 5% most reliable donors in the Ann Network</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 bg-black/20 backdrop-blur px-3 py-1.5 rounded-xl text-xs font-mono font-bold">
+          <i data-lucide="award" class="w-4 h-4 text-amber-300"></i>
+          <span>5 of 8 Trophies Earned</span>
+        </div>
+      </div>
+
+      <!-- Tier Progression Steps -->
+      <div class="grid grid-cols-5 gap-1.5 text-center text-[10px] mb-5 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+        <div class="p-1 rounded-xl bg-white text-emerald-800 border border-emerald-200 shadow-2xs font-bold">
+          <span class="block text-sm">🥉</span>
+          <span>Bronze</span>
+          <span class="text-[9px] text-slate-400 block">0 Meals</span>
+        </div>
+        <div class="p-1 rounded-xl bg-white text-emerald-800 border border-emerald-200 shadow-2xs font-bold">
+          <span class="block text-sm">🥈</span>
+          <span>Silver</span>
+          <span class="text-[9px] text-slate-400 block">250 Meals</span>
+        </div>
+        <div class="p-1 rounded-xl bg-amber-100 text-amber-950 border border-amber-300 shadow-xs font-black ring-2 ring-amber-400/50">
+          <span class="block text-sm">🥇</span>
+          <span>Gold ✓</span>
+          <span class="text-[9px] text-amber-800 block">500 Meals</span>
+        </div>
+        <div class="p-1 rounded-xl bg-white text-slate-500 border border-slate-200 font-medium opacity-75">
+          <span class="block text-sm">🎖️</span>
+          <span>Platinum</span>
+          <span class="text-[9px] text-slate-400 block">1k Meals</span>
+        </div>
+        <div class="p-1 rounded-xl bg-white text-slate-500 border border-slate-200 font-medium opacity-75">
+          <span class="block text-sm">👑</span>
+          <span>Diamond</span>
+          <span class="text-[9px] text-slate-400 block">2.5k Meals</span>
+        </div>
+      </div>
+
+      <!-- Trophy Filter Tabs -->
+      <div class="flex items-center gap-1.5 mb-3 text-xs">
+        <button onclick="filterTrophies('ALL')" id="trophy-filter-ALL" class="trophy-filter-btn px-3 py-1 rounded-xl bg-amber-500 text-white font-bold transition shadow-xs">All Trophies (8)</button>
+        <button onclick="filterTrophies('unlocked')" id="trophy-filter-unlocked" class="trophy-filter-btn px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">Unlocked (5)</button>
+        <button onclick="filterTrophies('locked')" id="trophy-filter-locked" class="trophy-filter-btn px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">In Progress (3)</button>
+      </div>
+
+      <!-- Trophies Grid -->
+      <div id="trophy-hall-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"></div>
+
+      <!-- Modal Footer -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
+        <span class="text-slate-500 font-medium">Trophy points contribute to CSR audit & zero-waste certification.</span>
+        <div class="flex items-center gap-2">
+          <button onclick="openTaxReceiptAlert()" class="px-3 py-1.5 font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+            📄 CSR Certificate
+          </button>
+          <button onclick="closeTrophyModal()" class="px-4 py-1.5 font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition">
+            Done
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: NGO WRITE DONOR REVIEW ==================== -->
+  <div id="ngo-review-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shadow-xs text-xl">
+            ⭐
+          </div>
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-lg">Rate & Review Food Donor</h3>
+            <p class="text-xs text-slate-500">Provide verified feedback on food quality, temperature & packaging</p>
+          </div>
+        </div>
+        <button onclick="closeReviewModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="ngo-write-review-form" onsubmit="handleReviewSubmit(event)" class="space-y-4 text-xs">
+        
+        <!-- 1. Select Donor Kitchen -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Select Donor Kitchen <span class="text-red-500">*</span></label>
+          <select id="review-donor-select" required class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 outline-none font-medium">
+            <option value="Royal Spice Caterers" selected>Royal Spice Caterers (Sector 14 Kitchen)</option>
+            <option value="Golden Crust Bakery">Golden Crust Bakery (Heritage Blvd)</option>
+            <option value="TechHub Conference">TechHub Conference (Convention Center)</option>
+            <option value="Green Earth Bistro">Green Earth Bistro (Greenway Park)</option>
+            <option value="Spice Symphony Kitchen">Spice Symphony Kitchen (Metro Plaza)</option>
+            <option value="Nizam Royal Kitchen">Nizam Royal Kitchen (Old Town)</option>
+          </select>
+        </div>
+
+        <!-- 2. Meal / Batch Description -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Meal Item / Batch Name <span class="text-red-500">*</span></label>
+          <input type="text" id="review-meal-title" required placeholder="e.g. 40 Packed Meal Trays or Wedding Feast" class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 outline-none font-medium">
+        </div>
+
+        <!-- 3. Star Rating Interactive Selector -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block font-bold text-slate-700">Overall Rating <span class="text-red-500">*</span></label>
+            <span id="review-star-label" class="text-xs font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md">5 Stars - Outstanding Quality!</span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-slate-50 rounded-2xl border border-slate-200 justify-center" id="review-stars-container">
+            <button type="button" onclick="setReviewRating(1)" onmouseover="hoverReviewRating(1)" onmouseout="resetReviewHover()" class="star-btn text-2xl text-amber-400 hover:scale-125 transition">★</button>
+            <button type="button" onclick="setReviewRating(2)" onmouseover="hoverReviewRating(2)" onmouseout="resetReviewHover()" class="star-btn text-2xl text-amber-400 hover:scale-125 transition">★</button>
+            <button type="button" onclick="setReviewRating(3)" onmouseover="hoverReviewRating(3)" onmouseout="resetReviewHover()" class="star-btn text-2xl text-amber-400 hover:scale-125 transition">★</button>
+            <button type="button" onclick="setReviewRating(4)" onmouseover="hoverReviewRating(4)" onmouseout="resetReviewHover()" class="star-btn text-2xl text-amber-400 hover:scale-125 transition">★</button>
+            <button type="button" onclick="setReviewRating(5)" onmouseover="hoverReviewRating(5)" onmouseout="resetReviewHover()" class="star-btn text-2xl text-amber-400 hover:scale-125 transition">★</button>
+          </div>
+        </div>
+
+        <!-- 4. Estimated Beneficiaries Fed -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Estimated People / Shelter Residents Fed</label>
+          <input type="number" id="review-meals-served" min="1" max="5000" value="50" placeholder="e.g. 65" class="w-full px-3.5 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 outline-none font-medium">
+        </div>
+
+        <!-- 5. Quality Checklist Badges -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1.5">Food Quality Highlights (Select all that apply)</label>
+          <div class="flex flex-wrap gap-2">
+            <label class="flex items-center gap-1.5 bg-slate-50 hover:bg-emerald-50 p-2 rounded-xl border border-slate-200 cursor-pointer text-xs font-semibold select-none transition">
+              <input type="checkbox" name="quality-tag" value="🔥 Hot & Fresh" checked class="rounded text-emerald-600 focus:ring-0">
+              <span>🔥 Hot & Fresh</span>
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-50 hover:bg-emerald-50 p-2 rounded-xl border border-slate-200 cursor-pointer text-xs font-semibold select-none transition">
+              <input type="checkbox" name="quality-tag" value="📦 Sealed Containers" checked class="rounded text-emerald-600 focus:ring-0">
+              <span>📦 Sealed Packaging</span>
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-50 hover:bg-emerald-50 p-2 rounded-xl border border-slate-200 cursor-pointer text-xs font-semibold select-none transition">
+              <input type="checkbox" name="quality-tag" value="⏱️ Punctual Handover" checked class="rounded text-emerald-600 focus:ring-0">
+              <span>⏱️ Punctual Handover</span>
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-50 hover:bg-emerald-50 p-2 rounded-xl border border-slate-200 cursor-pointer text-xs font-semibold select-none transition">
+              <input type="checkbox" name="quality-tag" value="🥗 Fresh Taste & Cleanliness" class="rounded text-emerald-600 focus:ring-0">
+              <span>🥗 Fresh & Clean</span>
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-50 hover:bg-emerald-50 p-2 rounded-xl border border-slate-200 cursor-pointer text-xs font-semibold select-none transition">
+              <input type="checkbox" name="quality-tag" value="❄️ Cold Chain Maintained" class="rounded text-emerald-600 focus:ring-0">
+              <span>❄️ Cold Chain Maintained</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 6. Review Comments -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Feedback Comments & Testimonial <span class="text-red-500">*</span></label>
+          <textarea id="review-comment-input" rows="3" required placeholder="Describe the food condition, packaging, handover experience, and the people who received the meals..." class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 outline-none font-medium leading-relaxed"></textarea>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closeReviewModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Publish Verified Review</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
