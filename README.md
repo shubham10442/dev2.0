@@ -1,6 +1,10 @@
-"DEVSTROM"
-CONTRIBUTERS
+--------------------------------------------------------------------------------"DEVSTROM"--------------------------------------------------------------
+Contributers
+
 SHUBHAM KUMAR
+
 MANAS KUMAR MEHTA
+
 SUMIT KUMAR PARSAD
+
 SIMRAN SINGH
