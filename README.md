@@ -23,6 +23,19 @@ Engineered as a prototype during the **DevStorm Hackathon** (`dev2.0`), Ann addr
 
 ---
 
+## 👥 DevStorm Team & Contributors
+
+Designed and engineered for **DevStorm Hackathon** by:
+
+| Contributor | Role | GitHub Profile |
+| :--- | :--- | :---: |
+| 🧑‍💻 **Shubham Kumar** | Full Stack / Project Lead | [@shubham10442](https://github.com/shubham10442) |
+| 👨‍💻 **Manas Kumar Mehta** | Frontend Developer | [Profile](#) |
+| 🧑‍💻 **Sumit Kumar Parsad** | Backend Developer | [Profile](#) |
+| 👩‍💻 **Simran Singh** | UI/UX & Documentation | [Profile](#) |
+
+---
+
 ## ✨ Key Features
 
 - 🔐 **Dual Login Portal:** Customized onboarding and authentication flows for Donors and NGOs, backed by JWT middleware.
